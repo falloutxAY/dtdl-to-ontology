@@ -53,6 +53,16 @@ def test_deployment_report_shows_part_comparison_without_semantic_claim():
             "additional_part_paths": [],
             "changed_part_paths": ["model.tmdl"],
             "semantic_equivalence": "not_asserted",
+            "semantic_comparison": {
+                "status": "completed",
+                "supported_fields_match": False,
+                "differences": {
+                    "namespaces": {"missing": [], "additional": [], "changed": {}},
+                    "entities": {"missing": [], "additional": [], "changed": {}},
+                    "properties": {},
+                    "relationships": {"missing": [], "additional": [], "changed": {}},
+                },
+            },
             "service_acceptance": "create_and_get_definition_succeeded",
         }
     )
@@ -62,7 +72,37 @@ def test_deployment_report_shows_part_comparison_without_semantic_claim():
     assert "Missing part paths: database.tmdl" in report
     assert "Additional part paths: none" in report
     assert "Changed part paths: model.tmdl" in report
+    assert "Normalized TMDL comparison: supported TMDL fields differ" in report
     assert "textual comparison is not semantic verification" in report
+    assert "Service acceptance: create_and_get_definition_succeeded" in report
+
+
+def test_deployment_report_labels_unsupported_semantic_comparison_unavailable():
+    report = _deployment_report(
+        {
+            "create_operation_status": None,
+            "get_definition_operation_status": None,
+            "create_http_status": 201,
+            "get_definition_http_status": 200,
+            "display_name": "Example",
+            "item_id": "item-id",
+            "returned_part_count": 3,
+            "expected_part_count": 3,
+            "definition_part_paths_match": True,
+            "definition_parts_textually_identical": True,
+            "missing_part_paths": [],
+            "additional_part_paths": [],
+            "changed_part_paths": [],
+            "semantic_comparison": {
+                "status": "unsupported",
+                "error": "Unsupported TMDL construct in entity.tmdl:2.",
+            },
+            "service_acceptance": "create_and_get_definition_succeeded",
+        }
+    )
+
+    assert "Normalized TMDL comparison: unavailable" in report
+    assert "Unsupported TMDL construct" in report
     assert "Service acceptance: create_and_get_definition_succeeded" in report
 
 

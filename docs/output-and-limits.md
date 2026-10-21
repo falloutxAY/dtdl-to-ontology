@@ -24,9 +24,12 @@ token in `FABRIC_ACCESS_TOKEN` (or the environment variable named by `--token-en
 The token is used in memory only and is never written to output or printed.
 Deployment creates a new item in the workspace root unless a UUID `--folder-id`
 is supplied; it never overwrites or deletes an existing item. The command checks
-that service definition parts decode as UTF-8 and reports path counts, but does
-**not** assert semantic equivalence. It does not ingest instances or validate
-runtime behavior. A successful REST round trip is separate from the local
+that service definition parts decode as UTF-8 and reports path/text differences
+plus a normalized comparison of the supported emitted TMDL fields. If a sibling
+`manifest.json` is present, it also summarizes approved mapping losses and source
+examples. This bounded comparison does **not** assert full semantic equivalence;
+unrecognized TMDL semantics, instance ingestion and runtime behavior are not verified.
+A successful REST round trip is separate from the local
 conversion report and must not change its `service_acceptance` field.
 
 Fixed objects and projected components require explicit `json-objects` approval

@@ -97,9 +97,13 @@ Remove-Item Env:FABRIC_ACCESS_TOKEN
 ```
 
 This creates a new workspace-root Ontology and retrieves its definition. Use a
-unique item name when converting, and inspect the service result separately:
-the command validates returned definition parts but does not assert full semantic
-equivalence, test instance ingestion, or delete the created item.
+unique item name when converting. The result includes exact part-path/text
+differences and a normalized comparison of supported TMDL fields: namespaces,
+entities, properties, relationships, types, descriptions, annotations and lineage.
+When the generated manifest is beside `definition.json`, the report also summarizes
+approved mapping losses with source examples. This bounded comparison is not proof
+of full semantic equivalence or runtime behavior; the command does not test instance
+ingestion or delete the created item.
 Fabric may return a regional `*-redirect.analysis.windows.net` operation URL;
 the client validates the operation host and follows the result location supplied
 by the service.

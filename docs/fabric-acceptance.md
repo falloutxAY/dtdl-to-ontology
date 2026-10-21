@@ -23,6 +23,7 @@ user-supplied test workspace and folder, the following results were observed:
 | Address new-experience UI | All 6 properties displayed as String and Unbound; no entity key defined |
 | Corrected Building with json-objects | Create returned HTTP 202; operation reached Succeeded; default getDefinition returned HTTP 200 and 15 TMDL parts |
 | Building semantic comparison | All 10 types/79 properties preserved, including descriptions, names, types, entity/property lineages, namespaces and model references |
+| Retained CLI Building model comparison (2026-10-21) | The retained service model response matched the generated local definition for 2 namespaces, 10 entities, 79 properties and 0 relationships. Names, descriptions, data types, annotations, entity/property lineages, and declaration sets matched; there were no relationship endpoints to compare. This checks the fields exposed by that response, not full semantic equivalence. |
 | Building scalar data types | 65 string, 10 double, 2 boolean and 2 int64; all 15 object/component fallbacks independently checked as string |
 | Building new-experience UI | Graph reports 10 total types/0 relationships; all 37 Building properties displayed as Unbound, including projected String properties |
 | Platform metadata | Type/name/config version preserved; service normalized the platform logicalId to the zero GUID |
@@ -106,11 +107,14 @@ unbound relationship or edge-reification support. Its 15 parts define 10 types a
    Fabric folder UUID is known; omitting it creates at workspace root. Use a unique
    display name when converting. The command reports item/operation IDs, whether
    submitted and returned part paths match, whether decoded part text is identical,
-   and lists missing, additional and textually changed paths. These are exact
-   decoded-text diagnostics only: text equality is not semantic equivalence, and
-   text differences may reflect harmless service normalization. The command
-   deliberately does not assert semantic equivalence or save raw service responses.
-   Its success means create plus retrieval succeeded, not full migration acceptance.
+   and lists missing, additional and textually changed paths. It also compares the
+   supported normalized TMDL fields (namespaces, entities, properties, relationships,
+   types, descriptions, annotations and lineages) and reports approved mapping-loss
+   policies/provenance from a sibling `manifest.json`, when present. Exact text
+   differences may reflect harmless service normalization. This bounded comparator
+   is not proof of full semantic equivalence or runtime behavior, and no raw service
+   responses are saved. Its success means create plus retrieval succeeded, not full
+   migration acceptance.
    The created item and Fabric-managed companion resources are retained; no automatic
    cleanup occurs.
 
