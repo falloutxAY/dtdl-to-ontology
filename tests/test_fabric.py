@@ -94,7 +94,11 @@ def test_deploy_creates_and_retrieves_definition_without_exposing_token(
     assert result["semantic_equivalence"] == "not_asserted"
     assert result["item_id"] == ITEM_ID
     assert result["expected_part_count"] == result["returned_part_count"] == 3
+    assert result["definition_part_paths_match"]
+    assert result["definition_parts_textually_identical"]
     assert not result["missing_part_paths"]
+    assert not result["additional_part_paths"]
+    assert not result["changed_part_paths"]
     create_request, get_request = [call[0] for call in opener.requests]
     assert (
         create_request.full_url
@@ -256,6 +260,52 @@ def test_deploy_retries_throttled_api_response(tmp_path):
     assert result["service_acceptance"] == "create_and_get_definition_succeeded"
     assert len(opener.requests) == 3
     assert waits == [0.0]
+
+
+@pytest.mark.parametrize(
+    ("edit_parts", "missing", "additional", "changed"),
+    [
+        (lambda parts: parts.pop("database.tmdl"), ["database.tmdl"], [], []),
+        (lambda parts: parts.update({"extra.tmdl": "extra"}), [], ["extra.tmdl"], []),
+        (
+            lambda parts: parts.update({"database.tmdl": "database\n"}),
+            [],
+            [],
+            ["database.tmdl"],
+        ),
+    ],
+)
+def test_deploy_reports_definition_part_differences(
+    tmp_path, edit_parts, missing, additional, changed
+):
+    submitted = definition()
+    _, service_parts = decode_definition(submitted, "Definition")
+    edit_parts(service_parts)
+    returned = envelope(service_parts)
+    opener = FakeOpener(
+        [
+            FakeResponse(
+                201,
+                {"id": ITEM_ID, "type": "Ontology", "workspaceId": WORKSPACE_ID},
+            ),
+            FakeResponse(200, {"definition": returned}),
+        ]
+    )
+
+    result = deploy_definition(
+        write_definition(tmp_path),
+        WORKSPACE_ID,
+        TOKEN,
+        client=FabricClient(TOKEN, opener=opener),
+    )
+
+    assert result["service_acceptance"] == "create_and_get_definition_succeeded"
+    assert result["semantic_equivalence"] == "not_asserted"
+    assert result["definition_part_paths_match"] == (not bool(missing or additional))
+    assert not result["definition_parts_textually_identical"]
+    assert result["missing_part_paths"] == missing
+    assert result["additional_part_paths"] == additional
+    assert result["changed_part_paths"] == changed
 
 
 def test_invalid_definition_or_name_is_rejected_before_network(tmp_path):

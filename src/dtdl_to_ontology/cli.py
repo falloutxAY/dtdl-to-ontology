@@ -81,6 +81,10 @@ def parser() -> argparse.ArgumentParser:
 def _deployment_report(result: dict) -> str:
     operation = result["create_operation_status"] or "not required"
     get_operation = result["get_definition_operation_status"] or "not required"
+
+    def paths_or_none(paths: list[str]) -> str:
+        return ", ".join(paths) if paths else "none"
+
     return (
         "# Fabric deployment check\n\n"
         f"Create: HTTP {result['create_http_status']} ({operation})\n"
@@ -88,7 +92,14 @@ def _deployment_report(result: dict) -> str:
         f"Item: {result['display_name']} ({result['item_id']})\n"
         f"Returned parts: {result['returned_part_count']} "
         f"(expected {result['expected_part_count']})\n"
-        "Semantic equivalence: not asserted; inspect service-normalized output separately.\n"
+        "Definition part paths match: "
+        f"{'yes' if result['definition_part_paths_match'] else 'no'}\n"
+        "Decoded part text identical: "
+        f"{'yes' if result['definition_parts_textually_identical'] else 'no'}\n"
+        f"Missing part paths: {paths_or_none(result['missing_part_paths'])}\n"
+        f"Additional part paths: {paths_or_none(result['additional_part_paths'])}\n"
+        f"Changed part paths: {paths_or_none(result['changed_part_paths'])}\n"
+        "Semantic equivalence: not asserted; textual comparison is not semantic verification.\n"
         f"Service acceptance: {result['service_acceptance']}\n"
     )
 

@@ -104,11 +104,15 @@ unbound relationship or edge-reification support. Its 15 parts define 10 types a
    status/result requests, then calls `getDefinition` without a format override and
    decodes the returned UTF-8 parts. Supply `--folder-id <folder-guid>` only when a
    Fabric folder UUID is known; omitting it creates at workspace root. Use a unique
-   display name when converting. The command reports item/operation IDs and part
-   paths, but deliberately does not assert semantic equivalence or save raw service
-   responses. Its success means create plus retrieval succeeded, not full migration
-   acceptance. The created item and Fabric-managed companion resources are retained;
-   no automatic cleanup occurs.
+   display name when converting. The command reports item/operation IDs, whether
+   submitted and returned part paths match, whether decoded part text is identical,
+   and lists missing, additional and textually changed paths. These are exact
+   decoded-text diagnostics only: text equality is not semantic equivalence, and
+   text differences may reflect harmless service normalization. The command
+   deliberately does not assert semantic equivalence or save raw service responses.
+   Its success means create plus retrieval succeeded, not full migration acceptance.
+   The created item and Fabric-managed companion resources are retained; no automatic
+   cleanup occurs.
 
    To perform the steps manually instead, follow [Create Item](https://learn.microsoft.com/en-us/rest/api/fabric/core/items/create-item):
    submit `POST https://api.fabric.microsoft.com/v1/workspaces/{workspaceId}/items`.
