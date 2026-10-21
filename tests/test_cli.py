@@ -4,7 +4,66 @@ import sys
 
 import pytest
 
+from dtdl_to_ontology.cli import _deployment_report, main
+
 from .conftest import interface
+
+
+def test_deploy_keeps_success_exit_for_reported_part_differences(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("FABRIC_ACCESS_TOKEN", "test-token")
+    result = {
+        "service_acceptance": "create_and_get_definition_succeeded",
+        "semantic_equivalence": "not_asserted",
+        "definition_part_paths_match": False,
+        "definition_parts_textually_identical": False,
+        "missing_part_paths": ["database.tmdl"],
+        "additional_part_paths": [],
+        "changed_part_paths": [],
+    }
+    monkeypatch.setattr("dtdl_to_ontology.cli.deploy_definition", lambda *args, **kwargs: result)
+
+    exit_code = main(
+        [
+            "deploy",
+            str(tmp_path / "definition.json"),
+            "--workspace-id",
+            "ec53121a-7764-4e63-aebb-7af2c46f9a66",
+            "--json",
+        ]
+    )
+
+    assert exit_code == 0
+    assert json.loads(capsys.readouterr().out) == result
+
+
+def test_deployment_report_shows_part_comparison_without_semantic_claim():
+    report = _deployment_report(
+        {
+            "create_operation_status": None,
+            "get_definition_operation_status": None,
+            "create_http_status": 201,
+            "get_definition_http_status": 200,
+            "display_name": "Example",
+            "item_id": "item-id",
+            "returned_part_count": 3,
+            "expected_part_count": 3,
+            "definition_part_paths_match": False,
+            "definition_parts_textually_identical": False,
+            "missing_part_paths": ["database.tmdl"],
+            "additional_part_paths": [],
+            "changed_part_paths": ["model.tmdl"],
+            "semantic_equivalence": "not_asserted",
+            "service_acceptance": "create_and_get_definition_succeeded",
+        }
+    )
+
+    assert "Definition part paths match: no" in report
+    assert "Decoded part text identical: no" in report
+    assert "Missing part paths: database.tmdl" in report
+    assert "Additional part paths: none" in report
+    assert "Changed part paths: model.tmdl" in report
+    assert "textual comparison is not semantic verification" in report
+    assert "Service acceptance: create_and_get_definition_succeeded" in report
 
 
 def test_installed_help():

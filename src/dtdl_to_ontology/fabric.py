@@ -393,6 +393,9 @@ def deploy_definition(
         ) from error
     expected_paths = sorted(local_parts)
     returned_paths = sorted(service_parts)
+    expected_path_set = set(expected_paths)
+    returned_path_set = set(returned_paths)
+    shared_paths = expected_path_set & returned_path_set
     return {
         "service_acceptance": "create_and_get_definition_succeeded",
         "semantic_equivalence": "not_asserted",
@@ -405,6 +408,11 @@ def deploy_definition(
         "get_definition_operation_status": get_operation,
         "expected_part_count": len(expected_paths),
         "returned_part_count": len(returned_paths),
-        "missing_part_paths": sorted(set(expected_paths) - set(returned_paths)),
-        "additional_part_paths": sorted(set(returned_paths) - set(expected_paths)),
+        "definition_part_paths_match": expected_path_set == returned_path_set,
+        "definition_parts_textually_identical": local_parts == service_parts,
+        "missing_part_paths": sorted(expected_path_set - returned_path_set),
+        "additional_part_paths": sorted(returned_path_set - expected_path_set),
+        "changed_part_paths": sorted(
+            path for path in shared_paths if local_parts[path] != service_parts[path]
+        ),
     }
