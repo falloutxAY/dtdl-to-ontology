@@ -2,6 +2,7 @@
 
 import argparse
 import io
+import os
 import sys
 import uuid
 from collections.abc import Sequence
@@ -9,6 +10,7 @@ from pathlib import Path
 
 from . import __version__
 from .definition import build_parts
+from .fabric import FabricApiError, deploy_definition
 from .loader import load
 from .manifest import build_manifest
 from .options import load_options
@@ -22,7 +24,7 @@ from .resolver import resolve
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(
         prog="dtdl-to-ontology",
-        description="Analyze DTDLv3 and generate ontology-first Fabric TMDL without RDF.",
+        description="Analyze, convert, or optionally deploy DTDLv3 to Fabric Ontology.",
     )
     result.add_argument("--version", action="version", version=__version__)
     commands = result.add_subparsers(dest="command", required=True)
@@ -54,7 +56,41 @@ def parser() -> argparse.ArgumentParser:
             )
             command.add_argument("--name", required=True, help="Ontology item display name.")
             command.add_argument("--logical-id", help="Explicit platform logical UUID.")
+    deploy = commands.add_parser(
+        "deploy",
+        help="Create an Ontology from a local definition and retrieve its service definition.",
+    )
+    deploy.add_argument("definition", type=Path, help="Locally validated definition.json file.")
+    deploy.add_argument("--workspace-id", required=True, help="Target Fabric workspace UUID.")
+    deploy.add_argument(
+        "--folder-id", help="Optional target Fabric folder UUID; omitted means workspace root."
+    )
+    deploy.add_argument(
+        "--name",
+        help="Optional item name; when supplied it must match the definition's .platform name.",
+    )
+    deploy.add_argument(
+        "--token-env",
+        default="FABRIC_ACCESS_TOKEN",
+        help="Environment variable containing a Fabric access token.",
+    )
+    deploy.add_argument("--json", action="store_true", help="Write a machine-readable result.")
     return result
+
+
+def _deployment_report(result: dict) -> str:
+    operation = result["create_operation_status"] or "not required"
+    get_operation = result["get_definition_operation_status"] or "not required"
+    return (
+        "# Fabric deployment check\n\n"
+        f"Create: HTTP {result['create_http_status']} ({operation})\n"
+        f"Get definition: HTTP {result['get_definition_http_status']} ({get_operation})\n"
+        f"Item: {result['display_name']} ({result['item_id']})\n"
+        f"Returned parts: {result['returned_part_count']} "
+        f"(expected {result['expected_part_count']})\n"
+        "Semantic equivalence: not asserted; inspect service-normalized output separately.\n"
+        f"Service acceptance: {result['service_acceptance']}\n"
+    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -64,6 +100,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser().parse_args(argv)
     published = False
     try:
+        if args.command == "deploy":
+            token = os.environ.get(args.token_env)
+            if not token:
+                raise ValueError(
+                    f"No Fabric access token found in environment variable {args.token_env!r}."
+                )
+            result = deploy_definition(
+                args.definition,
+                args.workspace_id,
+                token,
+                expected_name=args.name,
+                folder_id=args.folder_id,
+            )
+            print(
+                canonical_json(result) if args.json else _deployment_report(result),
+                end="",
+            )
+            return 0
         options = load_options(
             args.config,
             compatibility=args.compatibility,
@@ -99,6 +153,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "convert":
             return 1 if plan.blocked else 0
         return 1 if collection.findings else 0
+    except FabricApiError as error:
+        print(f"dtdl-to-ontology: {error}", file=sys.stderr)
+        if args.json:
+            print(
+                canonical_json({"service_acceptance": "failed", "error": str(error)}),
+                end="",
+            )
+        return 3
     except (OSError, ValueError) as error:
         print(f"dtdl-to-ontology: {error}", file=sys.stderr)
         if published:
@@ -106,15 +168,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"Result was saved at {args.output}; console status output failed.", file=sys.stderr
             )
         elif args.json:
-            print(
-                canonical_json(
-                    {
-                        "analysis_status": "not_completed",
-                        "emission_status": "not_published",
-                        "service_acceptance": "unverified",
-                        "error": str(error),
-                    }
-                ),
-                end="",
+            failure = (
+                {"service_acceptance": "not_attempted", "error": str(error)}
+                if args.command == "deploy"
+                else {
+                    "analysis_status": "not_completed",
+                    "emission_status": "not_published",
+                    "service_acceptance": "unverified",
+                    "error": str(error),
+                }
             )
+            print(canonical_json(failure), end="")
         return 2

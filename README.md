@@ -1,11 +1,15 @@
 # DTDL to Fabric Ontology
 
 A Python CLI for direct DTDLv3 to Fabric Ontology **new-experience TMDL**
-conversion. No RDF/Turtle intermediate, .NET runtime, or Fabric credentials.
+conversion. No RDF/Turtle intermediate or .NET runtime. Analyze and convert stay
+offline and need no Fabric credentials; an explicit `deploy` command can use a
+pre-acquired Fabric access token for a service round trip.
 
 Produces locally validated definition payloads for the documented subset.
 Unverified relationships remain gated; semantic losses require named policies.
-Fabric service acceptance requires a separate authorized round trip.
+Local conversion does not imply Fabric acceptance. `deploy` is opt-in, creates a
+new Ontology, retrieves its definition, and does not claim semantic equivalence
+or clean up the created item.
 
 **Live acceptance (2026-10-20):** the corrected bounded Willow Building projection
 passed Fabric create/get-definition and new-experience UI checks: **10 types,
@@ -28,13 +32,16 @@ python -m venv .venv
 .\.venv\Scripts\dtdl-to-ontology.exe --help
 .\.venv\Scripts\dtdl-to-ontology.exe analyze --help
 .\.venv\Scripts\dtdl-to-ontology.exe convert --help
+.\.venv\Scripts\dtdl-to-ontology.exe deploy --help
 ```
 
 `analyze INPUT` inventories local models and reports compatibility.
 `convert INPUT --name NAME --output FOLDER` additionally generates the selected
 ontology-first definition, manifest, and reports.
-`--root DTMI` selects roots; omitted roots mean all input interfaces.
-Neither command deploys anything or resolves models over the network.
+`deploy DEFINITION --workspace-id UUID` explicitly creates an Ontology and
+retrieves its service definition. `--root DTMI` selects roots; omitted roots mean
+all input interfaces. Analyze and convert never deploy or resolve models over the
+network.
 
 Ontology-first means types and metadata only: no lakehouse tables, data bindings,
 runtime twins, telemetry ingestion, or device command execution. Unsupported or
@@ -73,6 +80,29 @@ the local CLI tests, not claimed as service-accepted imports.
 
 See [known gaps and workarounds](docs/known-gaps.md) and
 [outputs, exit codes and limits](docs/output-and-limits.md).
+The full pinned Willow-corpus coverage sweep and its remaining limits are
+documented in [Willow full coverage](docs/willow-full-coverage.md).
+
+## Optional Fabric round trip
+
+The deployment command reads the display name from the locally generated
+`.platform` part. It requires an access token in `FABRIC_ACCESS_TOKEN` by default;
+the token is never written to the output directory or included in reports. For
+example, in PowerShell with an already authenticated Azure CLI:
+
+```powershell
+$env:FABRIC_ACCESS_TOKEN = az account get-access-token --scope https://api.fabric.microsoft.com/.default --query accessToken --output tsv
+.\.venv\Scripts\dtdl-to-ontology.exe deploy output\willow-building-json\definition.json --workspace-id <workspace-guid>
+Remove-Item Env:FABRIC_ACCESS_TOKEN
+```
+
+This creates a new workspace-root Ontology and retrieves its definition. Use a
+unique item name when converting, and inspect the service result separately:
+the command validates returned definition parts but does not assert full semantic
+equivalence, test instance ingestion, or delete the created item.
+Fabric may return a regional `*-redirect.analysis.windows.net` operation URL;
+the client validates the operation host and follows the result location supplied
+by the service.
 
 ## Checks
 

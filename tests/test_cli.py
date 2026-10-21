@@ -17,12 +17,39 @@ def test_installed_help():
     assert result.returncode == 0
     assert "analyze" in result.stdout
     assert "convert" in result.stdout
+    assert "deploy" in result.stdout
 
 
 def test_import_and_version():
     from dtdl_to_ontology import __version__
 
     assert __version__
+
+
+def test_deploy_requires_an_explicit_environment_token(write_models, tmp_path, monkeypatch):
+    source = write_models(interface())
+    output = tmp_path / "output"
+    conversion = run_cli(
+        "convert",
+        source,
+        "--name",
+        "Example",
+        "--output",
+        output,
+        "--json",
+    )
+    assert conversion.returncode == 0
+    monkeypatch.delenv("FABRIC_ACCESS_TOKEN", raising=False)
+    result = run_cli(
+        "deploy",
+        output / "definition.json",
+        "--workspace-id",
+        "ec53121a-7764-4e63-aebb-7af2c46f9a66",
+        "--json",
+    )
+    assert result.returncode == 2
+    assert "FABRIC_ACCESS_TOKEN" in result.stderr
+    assert json.loads(result.stdout)["service_acceptance"] == "not_attempted"
 
 
 def run_cli(*args):
