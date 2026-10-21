@@ -51,11 +51,22 @@ The converter SHALL derive stable target names, namespace assignments, and linea
 
 ### Requirement: Map supported scalar and object schemas
 
-The converter SHALL map strings, booleans, integer and long values, float and double values, and dateTime values to compatible Fabric types while recording source distinctions. Fixed-shape objects SHALL map recursively to complex structs. Unsupported collection or primitive semantics SHALL require a compatibility policy.
+The converter SHALL map supported scalar types while recording source distinctions. Fixed objects and projected components SHALL NOT be emitted as unbound structs where recursive backing is required. They SHALL block publication unless the explicit json-objects policy approves a JSON-string projection. This fallback SHALL retain source schemas and loss diagnostics without fabricating bindings or serializing runtime values.
 
-#### Scenario: Fixed object
-- **WHEN** a property contains a supported fixed-shape object
-- **THEN** its target property uses dataType complex and a recursive struct complexDataType assignment
+#### Scenario: Fixed object without fallback
+- **WHEN** a property contains a fixed-shape object and json-objects is not approved
+- **THEN** conversion reports the recursive backing requirement and blocks payload publication
+- **AND** existing collection, component or metadata policies do not waive that requirement
+
+#### Scenario: Approved object or component fallback
+- **WHEN** json-objects is explicitly approved for a fixed object or projected component
+- **THEN** its target property uses the string primitive and has no backing configuration
+- **AND** the manifest retains its original source and pre-fallback logical shape
+- **AND** diagnostics explain lost native field typing/querying and required downstream JSON serialization
+
+#### Scenario: Fallback does not conceal invalid source
+- **WHEN** an object or component contains malformed source or an unsupported command
+- **THEN** json-objects does not waive the source or runtime blocker
 
 #### Scenario: Array is not a struct
 - **WHEN** a property uses an array or dynamic map

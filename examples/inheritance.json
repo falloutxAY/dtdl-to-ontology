@@ -1,0 +1,14 @@
+[
+  {
+    "@context": "dtmi:dtdl:context;3",
+    "@id": "dtmi:example:Base;1",
+    "@type": "Interface",
+    "contents": [{"@type": "Property", "name": "label", "schema": "string"}]
+  },
+  {
+    "@context": "dtmi:dtdl:context;3",
+    "@id": "dtmi:example:Native;1",
+    "@type": "Interface",
+    "extends": "dtmi:example:Base;1"
+  }
+]

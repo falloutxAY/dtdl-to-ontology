@@ -1,0 +1,39 @@
+[
+  {
+    "@context": "dtmi:dtdl:context;3",
+    "@id": "dtmi:example:Base;1",
+    "@type": "Interface",
+    "contents": [{"@type": "Property", "name": "label", "schema": "string"}]
+  },
+  {
+    "@context": "dtmi:dtdl:context;3",
+    "@id": "dtmi:example:Details;1",
+    "@type": "Interface",
+    "contents": [
+      {
+        "@type": "Property", "name": "tags",
+        "schema": {"@type": "Array", "elementSchema": "string"}
+      },
+      {
+        "@type": "Property", "name": "state",
+        "schema": {
+          "@type": "Enum", "valueSchema": "string",
+          "enumValues": [{"name": "On", "enumValue": "on"}]
+        }
+      }
+    ]
+  },
+  {
+    "@context": ["dtmi:dtdl:context;3", "dtmi:dtdl:extension:quantitativeTypes;1"],
+    "@id": "dtmi:example:Projection;1",
+    "@type": "Interface",
+    "extends": "dtmi:example:Base;1",
+    "contents": [
+      {"@type": "Component", "name": "details", "schema": "dtmi:example:Details;1"},
+      {
+        "@type": ["Property", "Temperature"], "name": "temperature",
+        "schema": "double", "unit": "degreeCelsius"
+      }
+    ]
+  }
+]

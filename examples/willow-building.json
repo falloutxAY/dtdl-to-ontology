@@ -1,0 +1,36 @@
+{
+  "policies": [
+    "flatten-inheritance",
+    "component-properties",
+    "json-collections",
+    "json-objects",
+    "enum-underlying",
+    "temporal-strings",
+    "metadata-semantics",
+    "omit-relationships"
+  ],
+  "omit_relationships": [
+    "dtmi:com:willowinc:Building;1/architectedBy",
+    "dtmi:com:willowinc:Building;1/constructedBy",
+    "dtmi:com:willowinc:Building;1/hasCalendar",
+    "dtmi:com:willowinc:Building;1/hasSettings",
+    "dtmi:com:willowinc:Building;1/includedIn",
+    "dtmi:com:willowinc:Building;1/isAdjacentTo",
+    "dtmi:com:willowinc:Building;1/isPartOf",
+    "dtmi:com:willowinc:Building;1/locatedInGridRegion",
+    "dtmi:com:willowinc:Building;1/operatedBy",
+    "dtmi:com:willowinc:Building;1/ownedBy",
+    "dtmi:com:willowinc:Building;1/servedBy",
+    "dtmi:com:willowinc:Space;1/architectedBy",
+    "dtmi:com:willowinc:Space;1/constructedBy",
+    "dtmi:com:willowinc:Space;1/hasCalendar",
+    "dtmi:com:willowinc:Space;1/hasSettings",
+    "dtmi:com:willowinc:Space;1/includedIn",
+    "dtmi:com:willowinc:Space;1/isAdjacentTo",
+    "dtmi:com:willowinc:Space;1/isPartOf",
+    "dtmi:com:willowinc:Space;1/locatedInGridRegion",
+    "dtmi:com:willowinc:Space;1/operatedBy",
+    "dtmi:com:willowinc:Space;1/ownedBy",
+    "dtmi:com:willowinc:Space;1/servedBy"
+  ]
+}

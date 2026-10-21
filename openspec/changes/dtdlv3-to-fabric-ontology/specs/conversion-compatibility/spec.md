@@ -36,6 +36,11 @@ Conversion SHALL default to strict mode and reject unapproved semantic losses. C
 - **WHEN** an option names a policy that the converter does not implement
 - **THEN** the command fails instead of treating it as permission to skip data
 
+#### Scenario: Struct fallback requires separate approval
+- **WHEN** a fixed object or component would require an unbound struct
+- **THEN** json-collections or component-properties alone does not authorize a string fallback
+- **AND** only explicit json-objects approval permits that loss, with original shape and source provenance retained
+
 ### Requirement: Preserve transformation provenance
 
 The manifest SHALL record source revision and fingerprints when available, selected roots, dependency reasons, exclusions, target identities, original schemas and metadata, applied policies, and losses. Sidecar data SHALL NOT be inserted as unsupported Fabric definition parts or silently truncated to fit annotation limits.
@@ -93,3 +98,8 @@ Reports SHALL distinguish local structural checks, documented target compatibili
 #### Scenario: Feature rollout
 - **WHEN** native inheritance output is selected with a declared target feature profile
 - **THEN** the report records that declaration separately from evidence of service verification
+
+#### Scenario: Service rejects a locally valid shape
+- **WHEN** live testing rejects unbound structs for missing recursive backing configurations
+- **THEN** the target profile and local mapping gate reflect that restriction
+- **AND** accepted scalar projections are not presented as acceptance of the rejected shape

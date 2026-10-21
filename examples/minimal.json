@@ -1,0 +1,19 @@
+{
+  "@context": "dtmi:dtdl:context;3",
+  "@id": "dtmi:example:Minimal;1",
+  "@type": "Interface",
+  "contents": [
+    {"@type": "Property", "name": "label", "schema": "string"},
+    {
+      "@type": "Property",
+      "name": "position",
+      "schema": {
+        "@type": "Object",
+        "fields": [
+          {"name": "latitude", "schema": "double"},
+          {"name": "longitude", "schema": "double"}
+        ]
+      }
+    }
+  ]
+}

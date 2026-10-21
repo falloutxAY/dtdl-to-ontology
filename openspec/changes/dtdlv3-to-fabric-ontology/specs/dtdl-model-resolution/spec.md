@@ -98,3 +98,34 @@ Model resolution SHALL operate without fetching contexts, schemas, or models ove
 #### Scenario: Recursive schema
 - **WHEN** a schema cannot be represented as a finite target shape within the configured analysis limits
 - **THEN** the converter reports the source cycle or exceeded bound instead of hanging
+
+### Requirement: Validate supported declarations before applying loss policies
+
+The converter SHALL validate interpreted enum and relationship declarations before
+applying compatibility policies. Malformed source shapes SHALL remain non-waivable,
+source-addressable blockers, not Python exceptions. Valid omitted/empty enumValues
+SHALL be accepted. These checks SHALL NOT imply full DTDLParser or general JSON-LD
+conformance.
+
+#### Scenario: Invalid enum cannot be approved as a primitive
+- **WHEN** an enum value is missing, has the wrong literal type, or duplicates a name or value
+- **THEN** source validation blocks the selected declaration even when enum-underlying is approved
+- **AND** the finding identifies the offending enumValues entry
+
+#### Scenario: Enum has no declared choices
+- **WHEN** a valid string or integer Enum omits enumValues or declares an empty array
+- **THEN** resolution accepts the source shape
+- **AND** emitting its primitive fallback still requires enum-underlying approval
+
+#### Scenario: Omission does not validate malformed source
+- **WHEN** an omitted relationship contains duplicate property names, non-Property state, or invalid multiplicity
+- **THEN** its source-shape findings remain blockers for the selected owner
+- **AND** no ready definition is published
+
+#### Scenario: Malformed extension value
+- **WHEN** a quantitative unit is supplied as an object or array instead of a supported unit string
+- **THEN** resolution reports its location without an unhandled type error
+
+#### Scenario: Typed relationship metadata
+- **WHEN** a selected declaration uses a non-boolean writable flag or an invalid relationship target identifier
+- **THEN** source validation blocks it even if metadata preservation or a replacement target is configured

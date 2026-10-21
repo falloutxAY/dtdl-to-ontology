@@ -48,6 +48,15 @@ Microsoft's .NET DTDLParser would reduce semantic-validation work, and Willow us
 
 Preserve raw declarations alongside normalized typed records. A source index keyed by DTMI resolves interfaces and named schemas. Built-in extension vocabulary definitions are versioned local data, not network lookups. Resolve inheritance with cycle detection and declaration-aware diamond deduplication. Ambiguous name collisions block rather than use last-write-wins semantics.
 
+Validate interpreted source shapes before applying loss policies: enum literals
+must match their primitive type and have distinct names/values, while omitted or
+empty enumValues is valid. Relationship state must contain distinctly named
+Properties; multiplicities, target identifiers, writable flags and adjunct unit
+value types are checked before omission or target mapping. Compatibility is not
+permission to repair invalid source declarations. Diagnostics retain entry-level
+JSON pointers, including malformed values that would otherwise raise Python type
+errors. This strengthens the bounded subset without claiming full parser parity.
+
 ### 2. Separate analysis from output selection
 
 Provide `analyze` and `convert` commands. Both accept an input directory or collection file. Analyze inventories the whole input; convert additionally accepts explicit root DTMIs, a target feature profile, and repeated named compatibility policies. No roots means all input interfaces, never an automatically selected small sample.
@@ -66,9 +75,10 @@ Initial named policies:
 | --- | --- | --- |
 | flatten-inheritance | Materialize effective compatible properties and explicitly plan inherited relationships | No equivalent native multiple-parent type hierarchy or inherited polymorphism |
 | json-collections | Map arrays and dynamic maps to string properties containing JSON | No native collection shape or typed element queries |
+| json-objects | Map fixed objects and projected component structs to JSON-string properties after full source and mapping analysis | No native field typing/querying; downstream ingestion must serialize values; original and resolved logical shapes remain in the manifest |
 | enum-underlying | Emit the enum's string or integer value type | Allowed-value and label semantics require external validation |
 | temporal-strings | Preserve date, time, and duration as ISO-formatted strings | No corresponding native temporal operations |
-| component-properties | Project component properties into recursive structs; use prefixed properties where a struct cannot faithfully express the supported shape | Component identity and relationship semantics remain separately reported |
+| component-properties | Analyze component properties as recursive structs; unbound publication additionally requires json-objects string projection | Component identity and relationship semantics remain separately reported |
 | metadata-semantics | Preserve units, source width distinctions, writable flags, annotation/override links, localization, and constraints as metadata/manifest | Metadata storage does not execute source behavior |
 | reify-relationship-properties | Introduce an edge entity with a stable role identity, edge-ID property definition, typed edge properties, and endpoint relationship declarations | Does not preserve native attributed-edge identity; depends on accepted unbound endpoint relationships |
 | omit-relationships | Omit only explicitly identified relationships | Deliberate graph incompleteness; never implicitly applied to every relationship |
@@ -85,6 +95,17 @@ Use the documented database compatibility level 1000000 and platform config vers
 
 Unbound entity/property support is documented. Unbound entity-relationship acceptance is not established by the inspected example, which shows backing configurations. Before enabling that mapping, obtain authoritative contract confirmation or a small service acceptance result. If unavailable or rejected, report the relationship mapping as unverified/unsupported and allow only an explicit omission; do not invent backing tables. This is an acceptance gate with a defined fallback, not permission to claim support.
 
+Live acceptance on 2026-10-20 established a narrower property boundary: Willow
+Address passed with three entity types and six unbound string properties, but
+Building's fifteen struct properties failed ComplexLogicalBackingMismatch because
+structs require exact recursive backing. Update the profile and gate every planned
+fixed-object/component struct before publication. Explicit json-objects approval
+changes the whole emitted property to string only after nested metadata, runtime,
+relationship and source checks have run. Keep the pre-fallback logical shape in
+the manifest and issue one source-addressable loss finding per emitted property.
+Component identity loss still independently requires component-properties.
+No data backings, runtime JSON values or new deployment client are introduced.
+
 The converter emits the definition envelope, not an authenticated create-item request. Item display name is a user input; derive a stable local logical identity unless explicitly supplied. Never use a model identifier as a runtime instance key.
 
 ### 5. Deterministic identity and safe serialization
@@ -93,7 +114,7 @@ Map full source DTMI namespaces to valid Fabric namespaces and include the DTMI 
 
 Implement one TMDL identifier/text serializer, including quoted names, multiline doc comments, annotations, and JSON-assignment complexDataType lines. Use canonical JSON ordering, stable file ordering, and UTF-8 encoding before Base64 packaging. Do not insert raw source names, comments, or descriptions as TMDL syntax.
 
-Primitive mappings are string to string, boolean to boolean, integer/long to int64, float/double to double, and dateTime to dateTime. Preserve source distinctions in the manifest. Fixed objects use recursive struct complexDataType assignments. Never invent an array or map complex kind.
+Primitive mappings are string to string, boolean to boolean, integer/long to int64, float/double to double, and dateTime to dateTime. Preserve source distinctions in the manifest. Fixed objects are analyzed as recursive structs, but publication requires the explicit JSON-string fallback while native structs require real backings. Never invent an array or map complex kind.
 
 ### 6. Sidecars and publication
 
@@ -122,6 +143,7 @@ Maintain these entries in user documentation and emit matching finding categorie
 | Inherited ordinary relationships | Explicit expansion, omission, or blocker | Fabric does not inherit them; expansion can exceed capacity |
 | Deep polymorphism | Record ancestor closure for downstream explicit queries | Documented native query expansion is only one hop |
 | Components | Property projection; separately handle contained relationships | No complete native component equivalent |
+| Unbound fixed objects/component structs | Block, or explicitly approve json-objects with full provenance | Live service requires recursive backing for native structs; JSON strings lose native field typing/querying |
 | Arrays and dynamic maps | Approved JSON strings | No native array/map kinds or typed collection queries |
 | Enums | Approved primitive mapping with allowed values in manifest | No native allowed-value enforcement |
 | Relationship properties | Approved edge-entity reification when endpoint mappings are accepted | Not native attributed edges; ordinary junction tables do not expose edge properties |
@@ -148,7 +170,18 @@ Normalized child-entity collections and generic-twin projections are documented 
 - Full-source analysis asserts 3705 interfaces and records the known missing relationship target. Expanded counts are regression measurements with explained algorithms, not brittle claims of official parser equivalence.
 - A small representative Willow root selection exercises inheritance, components, collections, enums, and units with explicitly named policies. Assert exact inclusions, exclusions, report findings, and actual target limits. Do not modify Willow source to make it pass.
 - Compare decoded emitted parts to expected TMDL and validate the REST envelope; use golden snapshots only for meaningful representative outputs.
+- Build a wheel without fetching runtime dependencies, install it in a clean
+  Python 3.11 environment, and run the CLI from outside the checkout. Verify both
+  strict success and non-waivable invalid-source failures from that installation,
+  not only the editable development package.
+- Extend negative regressions when source-shape gaps are reproduced, then rerun
+  the full pinned source and bounded Willow CLI projection. Keep prior output
+  directories unchanged and record any newly diagnosed source issues explicitly.
 - Separately perform or document a manual Fabric create/get-definition round trip against an available test workspace. No deployment client is added. Compare normalized semantics, not byte-for-byte equality, because the service elides defaults and synthesizes parts. Record tenant feature state and relationships/inheritance acceptance. If access is absent, record the service check as blocked, not passed.
+- Repeat the bounded Building service check with json-objects approved, wait for
+  create completion, retrieve using the working default-format request, and compare
+  target properties, types and lineages. Keep rejected and accepted evidence
+  separate; platform-owned logicalId normalization is not entity-lineage loss.
 
 ## Risks / Trade-offs
 
