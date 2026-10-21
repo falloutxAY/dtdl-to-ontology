@@ -8,7 +8,7 @@ import pytest
 from dtdl_to_ontology.definition import build_parts, envelope
 from dtdl_to_ontology.loader import load
 from dtdl_to_ontology.manifest import build_manifest
-from dtdl_to_ontology.options import load_options
+from dtdl_to_ontology.options import POLICIES, Options, load_options
 from dtdl_to_ontology.plan import make_plan
 from dtdl_to_ontology.preflight import preflight
 from dtdl_to_ontology.report import build_report, canonical_json
@@ -42,6 +42,8 @@ def test_full_pinned_inventory_and_strict_blockers_are_not_conversion_success(wi
     plan = make_plan(willow)
     inventory = plan.selection.inventory()
     assert inventory["interfaces"] == 3705
+    assert len(plan.selection.selected) == inventory["interfaces"]
+    assert not inventory["excluded"]
     assert inventory["multiple_inheritance"] == 225
     expected = {
         "Property": 1384,
@@ -75,6 +77,31 @@ def test_full_pinned_inventory_and_strict_blockers_are_not_conversion_success(wi
     assert report["emission_status"] == "not_attempted"
     assert report["service_acceptance"] == "unverified"
     assert plan.blocked
+    assert len(plan.entities) == 3705
+    assert len(plan.relationships) == 14744
+
+
+def test_full_pinned_policy_sweep_keeps_nonwaivable_gaps_and_limits(willow):
+    plan = make_plan(willow, Options(compatibility=True, policies=POLICIES))
+    checks = preflight(plan, "WillowPolicySweep")
+    findings = [*plan.findings, *checks.findings]
+
+    assert plan.selection.selected == set(willow.collection.models)
+    assert not plan.selection.inventory()["excluded"]
+    assert len(plan.entities) == 3723
+    assert len(plan.relationships) == 14780
+    assert sum(f.blocking for f in findings) == 25297
+    assert [(finding.code, finding.message) for finding in checks.findings if finding.blocking] == [
+        ("LIMIT_RELATIONSHIPS", "Measured 14780; supported limit is 10000.")
+    ]
+    blocked_owners = {
+        identifier
+        for identifier in willow.collection.models
+        if any(f.blocking and f.dtmi == identifier for f in findings)
+    }
+    assert len(blocked_owners) == 3690
+    assert any(f.code == "MISSING_TARGET" and f.blocking for f in findings)
+    assert any(f.code == "ANNOTATION_TARGET" and f.blocking for f in findings)
 
 
 def test_bounded_building_projection_is_complete_explicit_and_deterministic(willow):

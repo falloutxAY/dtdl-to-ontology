@@ -9,7 +9,7 @@ runtime-data test. Local test-only profiles remain insufficient service evidence
 
 ## Observed live results
 
-The final full suite passed **126 tests**, including both pinned Willow tests
+The final full suite passed **137 tests**, including all pinned Willow tests
 and clean installed-wheel acceptance, with no skipped tests. Using the
 user-supplied test workspace and folder, the following results were observed:
 
@@ -26,6 +26,8 @@ user-supplied test workspace and folder, the following results were observed:
 | Building scalar data types | 65 string, 10 double, 2 boolean and 2 int64; all 15 object/component fallbacks independently checked as string |
 | Building new-experience UI | Graph reports 10 total types/0 relationships; all 37 Building properties displayed as Unbound, including projected String properties |
 | Platform metadata | Type/name/config version preserved; service normalized the platform logicalId to the zero GUID |
+| Optional CLI deployment (2026-10-21) | Create returned HTTP 202; regional operation reached Succeeded; getDefinition returned HTTP 200; all 15 expected part paths returned; semantic equivalence not asserted |
+| Full Willow compiler sweep (2026-10-21) | All 3,705 pinned interfaces loaded, selected and planned; strict mode has 14,744 relationship candidates and 1,432,050 logical-document nodes; all-policy mode remains blocked with 25,297 findings and 14,780 relationships |
 
 The rejection states that every Struct logical node requires exact recursively
 paired backing configuration. Generic documentation that backingConfiguration is
@@ -55,13 +57,19 @@ unverified status; service results are separate evidence, not retroactive edits.
 Each successful test created a new ontology. Fabric also provisioned its associated
 Eventhouse, KQL database and Graph model. Both sets of test resources were retained
 for inspection; no prior test/existing item was modified or cleanup deletion performed.
+The optional CLI deployment verification also created and retained its own test item
+and Fabric-managed companion resources.
 
 ## Procedure for further acceptance
 
-The Python CLI deliberately has no deployment client. This procedure is for an
-authorized human using an approved REST client, an isolated Fabric test workspace
-on supported capacity, and the required permissions. Do not use a production item
-or record credentials in the repository, sidecars, screenshots or HTTP logs.
+The opt-in CLI deployment path supports the create/get-definition round trip but
+does not assert semantic equivalence or runtime behavior. The remaining steps are
+for an authorized human reviewing the returned parts in an isolated Fabric test
+workspace on supported capacity. Do not use a production item or record credentials
+in the repository, sidecars, screenshots or HTTP logs.
+Fabric may return the long-running operation URL on a regional `*-redirect.analysis.windows.net`
+host; the client validates this host family and uses the result URL returned by the
+service when available.
 
 ## Prepare local artifacts
 
@@ -82,7 +90,27 @@ unbound relationship or edge-reification support. Its 15 parts define 10 types a
    revision in an access-controlled acceptance record. A contributor workspace role
    and an applicable Fabric item read/write authorization are required; do not
    assume all identity types or preview features are supported.
-2. Follow [Create Item](https://learn.microsoft.com/en-us/rest/api/fabric/core/items/create-item):
+2. For an automated create/get-definition round trip, set an already acquired access
+   token in `FABRIC_ACCESS_TOKEN` and invoke the opt-in CLI command with a generated
+   `definition.json`:
+
+   ```powershell
+   $env:FABRIC_ACCESS_TOKEN = az account get-access-token --scope https://api.fabric.microsoft.com/.default --query accessToken --output tsv
+   .\.venv\Scripts\dtdl-to-ontology.exe deploy output\willow-building-json\definition.json --workspace-id <workspace-guid> --json
+   Remove-Item Env:FABRIC_ACCESS_TOKEN
+   ```
+
+   The command creates a new Ontology in the workspace root, follows `202` operation
+   status/result requests, then calls `getDefinition` without a format override and
+   decodes the returned UTF-8 parts. Supply `--folder-id <folder-guid>` only when a
+   Fabric folder UUID is known; omitting it creates at workspace root. Use a unique
+   display name when converting. The command reports item/operation IDs and part
+   paths, but deliberately does not assert semantic equivalence or save raw service
+   responses. Its success means create plus retrieval succeeded, not full migration
+   acceptance. The created item and Fabric-managed companion resources are retained;
+   no automatic cleanup occurs.
+
+   To perform the steps manually instead, follow [Create Item](https://learn.microsoft.com/en-us/rest/api/fabric/core/items/create-item):
    submit `POST https://api.fabric.microsoft.com/v1/workspaces/{workspaceId}/items`.
    Supply a JSON body with `displayName` equal to the intended test item name,
    `type` equal to `Ontology`, and `definition` equal to the **parsed contents**
@@ -165,10 +193,11 @@ not the Fabric service's interpretation of TMDL.
 
 | Evidence | Current state |
 | --- | --- |
-| Automated local checks | 126 passed, including both pinned Willow tests; Ruff lint/format and strict OpenSpec passed |
+| Automated local checks | 137 passed, including all pinned Willow tests; Ruff lint/format and strict OpenSpec passed |
 | Installed distribution | Clean Python 3.11 environment; offline wheel installation and CLI execution outside checkout passed |
 | Pinned Willow source/fingerprints | Locally checked at revision `1d19b2584df02e05714628a57a7ddd69edeef29c` |
 | Bounded Building payload | `output\willow-building-json-20261020T051328Z\definition.json`; 10 types, 79 properties, 0 relationships, 15 parts, 15 JSON-object fallbacks and 22 explicit omissions |
+| Full-corpus coverage | `docs\willow-full-coverage.md`; detailed execution output is in ignored `output\willow-full-coverage-20261021\` |
 | Payload integrity | Every Base64 payload equals its readable UTF-8 part; all returned parts compared semantically without losing property/type/lineage associations |
 | Definition SHA-256 | `513d772f5551ae3f97f8262732c14d7b3ef98de285c4fe348f091d532ab251aa` |
 | Selected mapping blockers | 0 for the explicitly configured bounded example |

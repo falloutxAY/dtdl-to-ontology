@@ -17,6 +17,18 @@ acceptance. Counts are provisional when mappings are blocked, since a complete
 target may not exist yet. `locally_validated` **never means imported or verified
 by Fabric**. Runtime data bindings are not generated.
 
+The opt-in `deploy DEFINITION --workspace-id UUID` command reads the generated
+`definition.json`, creates a new Ontology, follows Fabric long-running operations,
+and retrieves the resulting item definition. It requires a pre-acquired bearer
+token in `FABRIC_ACCESS_TOKEN` (or the environment variable named by `--token-env`).
+The token is used in memory only and is never written to output or printed.
+Deployment creates a new item in the workspace root unless a UUID `--folder-id`
+is supplied; it never overwrites or deletes an existing item. The command checks
+that service definition parts decode as UTF-8 and reports path counts, but does
+**not** assert semantic equivalence. It does not ingest instances or validate
+runtime behavior. A successful REST round trip is separate from the local
+conversion report and must not change its `service_acceptance` field.
+
 Fixed objects and projected components require explicit `json-objects` approval
 to publish as unbound String properties. Each transformed property's manifest entry
 retains `pre_fallback_logical_type` in addition to original source and emitted type.
@@ -28,7 +40,8 @@ Exit codes:
 | --- | --- |
 | 0 | Analysis completed without loader errors, or conversion published locally validated output. Analysis may still report mapping blockers. |
 | 1 | Conversion blocked, or source loading had errors. Inspect findings and `source_loading_complete`. |
-| 2 | Invalid arguments/configuration, nonempty destination, filesystem/publication failure, or console status-delivery failure. Inspect stderr; `--json` provides a failure object when publication has not occurred. |
+| 2 | Invalid arguments/configuration, missing token, nonempty destination, filesystem/publication failure, or console status-delivery failure. Inspect stderr; `--json` provides a failure object when publication has not occurred. |
+| 3 | Fabric rejected a deployment request, an operation failed, or the service definition could not be retrieved. A created item may remain if retrieval failed; inspect the reported item ID and workspace before retrying. |
 
 ## Failure recovery
 
