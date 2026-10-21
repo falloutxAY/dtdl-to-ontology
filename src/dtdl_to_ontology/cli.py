@@ -85,6 +85,18 @@ def _deployment_report(result: dict) -> str:
     def paths_or_none(paths: list[str]) -> str:
         return ", ".join(paths) if paths else "none"
 
+    comparison = result["semantic_comparison"]
+    if comparison["status"] == "completed":
+        semantic_status = (
+            "supported TMDL fields match"
+            if comparison["supported_fields_match"]
+            else "supported TMDL fields differ"
+        )
+        semantic_detail = _format_semantic_differences(comparison["differences"])
+    else:
+        semantic_status = f"unavailable ({comparison['error']})"
+        semantic_detail = ""
+
     return (
         "# Fabric deployment check\n\n"
         f"Create: HTTP {result['create_http_status']} ({operation})\n"
@@ -99,9 +111,31 @@ def _deployment_report(result: dict) -> str:
         f"Missing part paths: {paths_or_none(result['missing_part_paths'])}\n"
         f"Additional part paths: {paths_or_none(result['additional_part_paths'])}\n"
         f"Changed part paths: {paths_or_none(result['changed_part_paths'])}\n"
+        f"Normalized TMDL comparison: {semantic_status}\n"
+        f"{semantic_detail}"
         "Semantic equivalence: not asserted; textual comparison is not semantic verification.\n"
         f"Service acceptance: {result['service_acceptance']}\n"
     )
+
+
+def _format_semantic_differences(differences: dict) -> str:
+    lines = []
+    for category in ("namespaces", "entities", "relationships"):
+        detail = differences[category]
+        for difference_type in ("missing", "additional"):
+            values = detail[difference_type]
+            if values:
+                lines.append(f"  {category} {difference_type}: {', '.join(values)}\n")
+        for name, changes in detail["changed"].items():
+            lines.append(f"  {category} changed {name}: {canonical_json(changes)}\n")
+    for entity, detail in differences["properties"].items():
+        for difference_type in ("missing", "additional"):
+            values = detail[difference_type]
+            if values:
+                lines.append(f"  properties in {entity} {difference_type}: {', '.join(values)}\n")
+        for name, changes in detail["changed"].items():
+            lines.append(f"  properties in {entity} changed {name}: {canonical_json(changes)}\n")
+    return "".join(lines)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

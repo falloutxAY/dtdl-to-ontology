@@ -96,6 +96,8 @@ def test_deploy_creates_and_retrieves_definition_without_exposing_token(
     assert result["expected_part_count"] == result["returned_part_count"] == 3
     assert result["definition_part_paths_match"]
     assert result["definition_parts_textually_identical"]
+    assert result["semantic_comparison"]["status"] == "completed"
+    assert result["semantic_comparison"]["supported_fields_match"]
     assert not result["missing_part_paths"]
     assert not result["additional_part_paths"]
     assert not result["changed_part_paths"]
@@ -301,11 +303,42 @@ def test_deploy_reports_definition_part_differences(
 
     assert result["service_acceptance"] == "create_and_get_definition_succeeded"
     assert result["semantic_equivalence"] == "not_asserted"
+    assert result["semantic_comparison"]["status"] == "completed"
+    assert result["semantic_comparison"]["supported_fields_match"]
     assert result["definition_part_paths_match"] == (not bool(missing or additional))
     assert not result["definition_parts_textually_identical"]
     assert result["missing_part_paths"] == missing
     assert result["additional_part_paths"] == additional
     assert result["changed_part_paths"] == changed
+
+
+def test_unsupported_semantics_do_not_change_successful_service_acceptance(tmp_path):
+    submitted = definition()
+    _, service_parts = decode_definition(submitted, "Definition")
+    service_parts["entities/default.Example.tmdl"] = service_parts[
+        "entities/default.Example.tmdl"
+    ].replace("\tlineageTag: example\n", "\tlineageTag: example\n\tisHidden: true\n")
+    opener = FakeOpener(
+        [
+            FakeResponse(
+                201,
+                {"id": ITEM_ID, "type": "Ontology", "workspaceId": WORKSPACE_ID},
+            ),
+            FakeResponse(200, {"definition": envelope(service_parts)}),
+        ]
+    )
+
+    result = deploy_definition(
+        write_definition(tmp_path),
+        WORKSPACE_ID,
+        TOKEN,
+        client=FabricClient(TOKEN, opener=opener),
+    )
+
+    assert result["service_acceptance"] == "create_and_get_definition_succeeded"
+    assert result["semantic_equivalence"] == "not_asserted"
+    assert result["semantic_comparison"]["status"] == "unsupported"
+    assert "Unsupported TMDL construct" in result["semantic_comparison"]["error"]
 
 
 def test_invalid_definition_or_name_is_rejected_before_network(tmp_path):

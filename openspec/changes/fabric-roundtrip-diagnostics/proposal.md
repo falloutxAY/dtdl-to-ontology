@@ -8,13 +8,15 @@ The deploy command confirms that Fabric created an Ontology and returned a defin
 
 - Compare locally submitted and service-returned definition parts by path and decoded text.
 - Report missing paths, additional paths, and changed text for paths present in both definitions in machine-readable and readable output.
+- Compare normalized fields from the emitted TMDL subset, including namespaces, entities, properties, relationships, types, descriptions, annotations, and lineage tags.
+- Report approved mapping-loss policies and representative source provenance when a conversion manifest is available.
 - Keep service acceptance distinct from part comparison and semantic equivalence. A successful create/get-definition round trip retains its current success exit code when differences are reported.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `fabric-definition-roundtrip`: Compare submitted and retrieved Fabric definition parts and report differences without asserting semantic equivalence.
+- `fabric-definition-roundtrip`: Compare submitted and retrieved Fabric definition parts and supported normalized TMDL fields without asserting full semantic equivalence.
 
 ### Modified Capabilities
 
@@ -22,4 +24,4 @@ None.
 
 ## Impact
 
-The Fabric deployment result and CLI report in `src/dtdl_to_ontology/fabric.py` and `src/dtdl_to_ontology/cli.py`, focused tests in `tests/test_fabric.py` and `tests/test_cli.py`, and deployment documentation. No service behavior, target mappings, or dependencies change.
+The Fabric deployment result and CLI report in `src/dtdl_to_ontology/fabric.py` and `src/dtdl_to_ontology/cli.py`, focused tests in `tests/test_fabric.py`, `tests/test_semantic.py`, and `tests/test_cli.py`, and deployment documentation. No service behavior, target mappings, or dependencies change.

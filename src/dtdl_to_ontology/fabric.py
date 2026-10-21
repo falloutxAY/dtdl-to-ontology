@@ -11,6 +11,7 @@ from urllib.parse import urlencode, urljoin, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from .report import canonical_json
+from .semantic import compare_semantics
 
 API_ROOT = "https://api.fabric.microsoft.com/v1"
 DEFAULT_TIMEOUT_SECONDS = 60
@@ -375,6 +376,15 @@ def deploy_definition(
     definition, local_parts = read_definition(path, expected_name)
     platform = json.loads(local_parts[".platform"])
     display_name = platform["metadata"]["displayName"]
+    manifest = None
+    manifest_path = path.parent / "manifest.json"
+    if manifest_path.is_file():
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            raise ValueError(f"Could not read conversion manifest: {manifest_path}.") from error
+        if not isinstance(manifest, dict):
+            raise ValueError(f"Conversion manifest must be a JSON object: {manifest_path}.")
     fabric = client or FabricClient(access_token)
     item, create_status, create_operation = fabric.create_ontology(
         workspace, display_name, definition, folder_id
@@ -391,6 +401,15 @@ def deploy_definition(
             f"Ontology was created as item {item_id}, but getDefinition verification failed: "
             f"{error}"
         ) from error
+    try:
+        semantic_comparison = compare_semantics(local_parts, service_parts, manifest=manifest)
+    except ValueError as error:
+        semantic_comparison = {
+            "status": "unsupported",
+            "scope": "normalized emitted TMDL fields; not full semantic equivalence",
+            "error": str(error),
+            "mapping_loss_context": None,
+        }
     expected_paths = sorted(local_parts)
     returned_paths = sorted(service_parts)
     expected_path_set = set(expected_paths)
@@ -399,6 +418,7 @@ def deploy_definition(
     return {
         "service_acceptance": "create_and_get_definition_succeeded",
         "semantic_equivalence": "not_asserted",
+        "semantic_comparison": semantic_comparison,
         "workspace_id": workspace,
         "item_id": item_id,
         "display_name": display_name,
