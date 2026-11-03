@@ -48,6 +48,7 @@ class Model:
     raw: dict[str, Any]
     source: Source
     sources: list[Source] = field(default_factory=list)
+    original: dict[str, Any] | None = None
 
     @property
     def contexts(self) -> tuple[str, ...]:
@@ -60,3 +61,26 @@ class Collection:
     models: dict[str, Model] = field(default_factory=dict)
     findings: list[Finding] = field(default_factory=list)
     fingerprints: dict[str, str] = field(default_factory=dict)
+    active_contexts: dict[Source, tuple[str, ...]] = field(default_factory=dict)
+    element_sources: dict[int, Source] = field(default_factory=dict)
+    original_elements: dict[int, dict] = field(default_factory=dict)
+    member_sources: dict[tuple[int, str], Source] = field(default_factory=dict)
+    normalization: list[dict] = field(default_factory=list)
+    interface_bytes: dict[Source, int] = field(default_factory=dict)
+
+    def location(self, raw: dict, fallback: Source, member: str | None = None) -> Source:
+        if member is not None:
+            return self.member_sources.get(
+                (id(raw), member), self.element_sources.get(id(raw), fallback).child(member)
+            )
+        return self.element_sources.get(id(raw), fallback)
+
+    def contexts_at(self, source: Source) -> tuple[str, ...]:
+        pointer = source.pointer
+        while True:
+            location = Source(source.file, pointer)
+            if location in self.active_contexts:
+                return self.active_contexts[location]
+            if not pointer:
+                return ()
+            pointer = pointer.rpartition("/")[0]

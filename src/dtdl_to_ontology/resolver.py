@@ -4,12 +4,17 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from .loader import DTMI
+from .extensions import EXTENSION_MEMBERS, EXTENSION_TYPES
+from .extensions import validate as validate_extensions
+from .geo import GEOSCHEMAS
+from .identifiers import valid_dtmi
 from .model import Collection, Finding, Model, Source
+from .normalization import MATERIALS
+from .source_graph import SourceGraph
+from .source_limits import validate_limits
+from .validation import validate_material
 from .vocabulary import (
-    ANNOTATION,
     EXTENSIONS,
-    OVERRIDING,
     QUANTITATIVE,
     QUANTITY_UNITS,
     UNIT_VALUES,
@@ -68,11 +73,14 @@ class Resolution:
     parents: dict[str, list[str]] = field(default_factory=dict)
     references: dict[str, set[Reference]] = field(default_factory=dict)
     findings: list[Finding] = field(default_factory=list)
+    graph: SourceGraph | None = None
 
 
 class Resolver:
     def __init__(self, collection: Collection):
         self.result = Resolution(collection)
+        self.graph = SourceGraph(collection).build()
+        self.result.graph = self.graph
         self._schema_stack: set[tuple[str, str]] = set()
         self._schema_done: set[tuple[str, str]] = set()
         self._schema_steps = 0
@@ -86,6 +94,9 @@ class Resolver:
 
     def index_schema(self, value: Any, owner: str, source: Source) -> None:
         if isinstance(value, dict):
+            source = self.result.collection.location(value, source)
+            if "Interface" in types(value) and value.get("@id") != owner:
+                return
             identifier = value.get("@id")
             if isinstance(identifier, str) and types(value) & SCHEMA_KINDS:
                 declaration = Declaration(owner, value, source)
@@ -123,8 +134,11 @@ class Resolver:
         if isinstance(schema, str):
             if schema in PRIMITIVES:
                 return
+            if schema in GEOSCHEMAS:
+                return
             if schema in UNIT_VALUES:
-                if QUANTITATIVE not in self.result.collection.models[owner].contexts:
+                contexts = self.result.collection.contexts_at(source)
+                if QUANTITATIVE not in contexts and "dtmi:dtdl:context;2" not in contexts:
                     self.issue(
                         "EXTENSION_CONTEXT",
                         f"{schema} requires quantitativeTypes v1.",
@@ -135,6 +149,11 @@ class Resolver:
             declaration = self.result.schemas.get(schema)
             if not declaration:
                 self.issue("MISSING_SCHEMA", f"Unresolved schema: {schema}", owner, source)
+                return
+            if declaration.owner != owner:
+                self.issue(
+                    "PARTITION_REFERENCE", "Schema is private to another Interface.", owner, source
+                )
                 return
             self.reference(owner, declaration.owner, "schema", source)
             key = (owner, schema)
@@ -169,14 +188,16 @@ class Resolver:
                     value.get("schema"), owner, source.child("mapValue", "schema"), depth + 1
                 )
         elif kind == "Object":
-            fields = schema.get("fields")
+            fields = schema.get("fields", [])
             if not isinstance(fields, list):
                 self.issue("SCHEMA_SHAPE", "Object fields must be an array.", owner, source)
                 return
             names = set()
             for index, entry in enumerate(fields):
                 location = source.child("fields", index)
-                if not isinstance(entry, dict) or not isinstance(entry.get("name"), str):
+                if isinstance(entry, dict):
+                    location = self.result.collection.location(entry, location)
+                if not isinstance(entry, dict) or not valid_name(entry.get("name")):
                     self.issue("SCHEMA_SHAPE", "Field requires a name.", owner, location)
                     continue
                 if entry["name"] in names:
@@ -297,7 +318,7 @@ class Resolver:
                     )
             if "target" in raw:
                 target = raw["target"]
-                if not isinstance(target, str) or len(target) > 2048 or not DTMI.fullmatch(target):
+                if not valid_dtmi(target):
                     self.issue(
                         "CONTENT_SHAPE",
                         "Relationship target must be a valid DTMI.",
@@ -352,6 +373,8 @@ class Resolver:
             return result
         for index, raw in enumerate(contents):
             source = model.source.child("contents", index)
+            if isinstance(raw, dict):
+                source = self.result.collection.location(raw, source)
             if not isinstance(raw, dict) or not isinstance(raw.get("name"), str):
                 self.issue("CONTENT_SHAPE", "Content requires a name.", model.id, source)
                 continue
@@ -428,126 +451,131 @@ class Resolver:
             visit(identifier)
 
     def extensions(self, model: Model) -> None:
-        contexts = set(model.contexts)
-        for context in sorted(contexts - EXTENSIONS - {"dtmi:dtdl:context;3"}):
-            self.issue(
-                "UNKNOWN_EXTENSION", f"Unsupported context: {context}", model.id, model.source
-            )
+        collection = self.result.collection
+        siblings = {
+            name: declaration.raw for name, declaration in self.result.contents[model.id].items()
+        }
+        views: dict[int, dict] = {}
+        active: set[int] = set()
 
-        def inspect(raw: Any, source: Source) -> None:
-            if isinstance(raw, dict):
-                adjuncts = types(raw)
-                known = (
-                    CONTENT_KINDS
-                    | SCHEMA_KINDS
-                    | set(QUANTITY_UNITS)
-                    | {
-                        "Interface",
-                        "Field",
-                        "MapKey",
-                        "MapValue",
-                        "EnumValue",
-                        "CommandRequest",
-                        "CommandResponse",
-                        "ValueAnnotation",
-                        "Override",
-                    }
+        def schema_view(raw: dict, stack: frozenset[str] = frozenset()) -> dict:
+            if id(raw) in views:
+                return views[id(raw)]
+            if id(raw) in active:
+                return raw
+            active.add(id(raw))
+            view = dict(raw)
+            value = raw.get("schema")
+            if isinstance(value, str) and value in self.result.schemas and value not in stack:
+                declaration = self.result.schemas[value]
+                if declaration.owner == model.id:
+                    view["schema"] = schema_view(declaration.raw, stack | {value})
+            if isinstance(raw.get("fields"), list):
+                view["fields"] = [
+                    schema_view(child, stack) if isinstance(child, dict) else child
+                    for child in raw["fields"]
+                ]
+            active.remove(id(raw))
+            views[id(raw)] = view
+            return view
+
+        for element in self.graph.elements.values():
+            if element.owner != model.id:
+                continue
+            raw, source = element.raw, element.source
+            contexts = set(collection.contexts_at(source))
+            unknown_contexts = (
+                contexts - EXTENSIONS - {"dtmi:dtdl:context;2", "dtmi:dtdl:context;3"}
+            )
+            for context in sorted(unknown_contexts):
+                self.issue(
+                    "UNKNOWN_EXTENSION",
+                    f"Unknown context; source validity indeterminate: {context}",
+                    model.id,
+                    source,
                 )
-                for unknown in sorted(adjuncts - known):
-                    self.issue("UNKNOWN_TYPE", f"Unsupported type: {unknown}", model.id, source)
-                quantities = adjuncts & set(QUANTITY_UNITS)
-                if quantities:
-                    if QUANTITATIVE not in contexts:
-                        self.issue(
-                            "EXTENSION_CONTEXT",
-                            "Quantity requires quantitativeTypes v1.",
-                            model.id,
-                            source,
-                        )
-                    if raw.get("schema") not in ("integer", "long", "float", "double"):
-                        self.issue(
-                            "QUANTITY_SCHEMA", "Quantity schema must be numeric.", model.id, source
-                        )
-                    if "unit" in raw and (
-                        not isinstance(raw["unit"], str)
-                        or any(
-                            raw["unit"] not in UNIT_VALUES[QUANTITY_UNITS[q]] for q in quantities
-                        )
-                    ):
-                        self.issue(
-                            "QUANTITY_UNIT",
-                            "Unit must be a supported quantity unit string.",
-                            model.id,
-                            source.child("unit"),
-                        )
-                if "ValueAnnotation" in adjuncts:
-                    if ANNOTATION not in contexts or not adjuncts & {"Property", "Telemetry"}:
-                        self.issue(
-                            "EXTENSION_CONTEXT",
-                            "Invalid annotation context/co-type.",
-                            model.id,
-                            source,
-                        )
-                    name = raw.get("annotates")
-                    annotated = (
-                        self.result.contents[model.id].get(name) if isinstance(name, str) else None
-                    )
-                    if annotated is None or not types(annotated.raw) & {"Property", "Telemetry"}:
-                        self.issue(
-                            "ANNOTATION_TARGET",
-                            "annotates must reference a sibling value.",
-                            model.id,
-                            source,
-                        )
-                    if "Override" in adjuncts:
-                        if OVERRIDING not in contexts:
-                            self.issue(
-                                "EXTENSION_CONTEXT",
-                                "Override requires overriding v1.",
-                                model.id,
-                                source,
-                            )
-                        field_name = raw.get("overrides")
-                        if field_name != "unit":
-                            self.issue(
-                                "OVERRIDE_FIELD",
-                                "Only quantitative unit overrides supported.",
-                                model.id,
-                                source,
-                            )
-                        elif annotated:
-                            targets = types(annotated.raw) & set(QUANTITY_UNITS)
-                            if not targets or any(
-                                raw.get("schema") != QUANTITY_UNITS[q] for q in targets
-                            ):
-                                self.issue(
-                                    "OVERRIDE_SCHEMA",
-                                    "Override unit schema does not match.",
-                                    model.id,
-                                    source,
-                                )
-                elif "Override" in adjuncts:
+            adjuncts = types(raw)
+            known = MATERIALS | set(QUANTITY_UNITS) | EXTENSION_TYPES
+            for unknown in sorted(adjuncts - known):
+                self.issue(
+                    "CONTEXTUALLY_INCOMPLETE" if unknown_contexts else "UNKNOWN_TYPE",
+                    f"Unsupported type: {unknown}",
+                    model.id,
+                    source.child("@type"),
+                )
+            quantities = adjuncts & QUANTITY_UNITS.keys()
+            if quantities:
+                if QUANTITATIVE not in contexts and "dtmi:dtdl:context;2" not in contexts:
                     self.issue(
-                        "OVERRIDE_ANNOTATION",
-                        "Override requires ValueAnnotation.",
+                        "EXTENSION_CONTEXT",
+                        "Quantity requires quantitativeTypes v1.",
                         model.id,
                         source,
                     )
-                for name, child in raw.items():
-                    inspect(child, source.child(name))
-            elif isinstance(raw, list):
-                for index, child in enumerate(raw):
-                    inspect(child, source.child(index))
-
-        inspect(model.raw, model.source)
+                if not adjuncts & {"Property", "Telemetry"}:
+                    self.issue(
+                        "EXTENSION_TYPE",
+                        "Quantity requires Property or Telemetry.",
+                        model.id,
+                        source.child("@type"),
+                    )
+                if raw.get("schema") not in ("integer", "long", "float", "double"):
+                    self.issue(
+                        "QUANTITY_SCHEMA",
+                        "Quantity schema must be numeric.",
+                        model.id,
+                        source.child("schema"),
+                    )
+                if "unit" in raw and (
+                    not isinstance(raw["unit"], str)
+                    or any(raw["unit"] not in UNIT_VALUES[QUANTITY_UNITS[q]] for q in quantities)
+                ):
+                    self.issue(
+                        "QUANTITY_UNIT",
+                        "Unit must match the quantity vocabulary.",
+                        model.id,
+                        source.child("unit"),
+                    )
+            findings = validate_extensions(
+                schema_view(raw), tuple(contexts), source, model.id, siblings
+            )
+            # Keep stable pre-existing diagnostic identifiers for annotation and
+            # override failures while extending their version-aware validation.
+            for finding in findings:
+                code = finding.code
+                if (
+                    code == "EXTENSION_REFERENCE"
+                    and "ValueAnnotation" in adjuncts
+                    and finding.source.pointer.endswith("/annotates")
+                ):
+                    code = "ANNOTATION_TARGET"
+                elif code == "EXTENSION_SCHEMA" and "Override" in adjuncts:
+                    code = "OVERRIDE_SCHEMA"
+                elif code == "EXTENSION_REFERENCE" and "Override" in adjuncts:
+                    code = "OVERRIDE_FIELD"
+                self.issue(code, finding.message, model.id, finding.source)
 
     def run(self) -> Resolution:
         models = [
             self.result.collection.models[identifier]
             for identifier in sorted(self.result.collection.models)
         ]
+        for element in self.graph.elements.values():
+            self.graph.expand(element.raw)
         for model in models:
             self.index_schema(model.raw, model.id, model.source)
+        for element in self.graph.elements.values():
+            if types(element.raw) & SCHEMA_KINDS:
+                self.result.schemas.setdefault(
+                    element.identity, Declaration(element.owner, element.raw, element.source)
+                )
+            extension_members = {name: {"unit"} for name in QUANTITY_UNITS}
+            extension_members |= EXTENSION_MEMBERS
+            self.result.findings.extend(
+                validate_material(element, self.result.collection, extension_members)
+            )
+        self.result.findings.extend(self.graph.findings)
+        self.result.findings.extend(validate_limits(self.graph, self.result.collection))
         for model in models:
             parents = model.raw.get("extends", [])
             parents = [parents] if isinstance(parents, str) else parents

@@ -1,0 +1,203 @@
+{
+  "schema_version": 1,
+  "source": "Synthetic models authored for this repository; no external model license required.",
+  "spec_revision": "d19669a438a63be377c3cfc2fcabeac2e16ad55b",
+  "features": [
+    "interfaces", "identifiers", "representations", "localization", "properties",
+    "telemetry", "commands", "components", "inheritance", "arrays", "maps", "objects",
+    "enums", "contexts", "partitions", "quantitative", "annotation", "overriding",
+    "historization", "requirement", "mqtt", "geospatial", "limits", "root-forms"
+  ],
+  "cases": [
+    {
+      "id": "scalar-versionless", "features": ["interfaces", "identifiers", "properties", "limits", "root-forms"],
+      "valid_source": true,
+      "model": {"@context": "dtmi:dtdl:context;3", "@id": "dtmi:example:Scalar", "@type": "Interface", "contents": [{"@type": "Property", "name": "label", "schema": "string"}]}
+    },
+    {
+      "id": "identifier-zero-minor", "features": ["identifiers", "interfaces"],
+      "valid_source": false, "findings": ["IDENTIFIER"],
+      "model": {"@context": "dtmi:dtdl:context;3", "@id": "dtmi:example:Bad;1.0", "@type": "Interface"}
+    },
+    {
+      "id": "property-wrong-member", "features": ["properties"],
+      "valid_source": false, "findings": ["UNDEFINED_MEMBER"],
+      "model": {"@context": "dtmi:dtdl:context;3", "@id": "dtmi:example:Bad;1", "@type": "Interface", "contents": [{"@type": "Property", "name": "label", "schema": "string", "elementSchema": "string"}]}
+    },
+    {
+      "id": "normative-spellings", "features": ["representations", "localization"],
+      "valid_source": true,
+      "model": {"@context": "dtmi:dtdl:context;3", "@id": "dtmi:example:Forms;1", "@type": ["dtmi:dtdl:class:Interface;3"], "description": [{"@value": "A sensor", "@language": "en"}], "dtmi:dtdl:property:contents;3": {"@type": ["Property"], "name": [{"@value": "label", "@type": "xsd:string"}], "schema": ["dtmi:dtdl:instance:Schema:string;3"]}}
+    },
+    {
+      "id": "scalar-cardinality", "features": ["representations"],
+      "valid_source": false, "findings": ["CARDINALITY"],
+      "model": {"@context": "dtmi:dtdl:context;3", "@id": "dtmi:example:Bad;1", "@type": "Interface", "contents": [{"@type": "Property", "name": ["a", "b"], "schema": "string"}]}
+    },
+    {
+      "id": "duplicate-default-language", "features": ["localization"],
+      "valid_source": false, "findings": ["LOCALIZED_STRING"],
+      "model": {"@context": "dtmi:dtdl:context;3", "@id": "dtmi:example:Bad;1", "@type": "Interface", "description": ["default", {"@value": "duplicate", "@language": "en"}]}
+    },
+    {
+      "id": "telemetry", "features": ["telemetry"],
+      "valid_source": true,
+      "model": {"@context": "dtmi:dtdl:context;3", "@id": "dtmi:example:Telemetry;1", "@type": "Interface", "contents": [{"@type": "Telemetry", "name": "reading", "schema": "double"}]}
+    },
+    {
+      "id": "telemetry-missing-schema", "features": ["telemetry"],
+      "valid_source": false, "findings": ["REQUIRED_MEMBER"],
+      "model": {"@context": "dtmi:dtdl:context;3", "@id": "dtmi:example:Bad;1", "@type": "Interface", "contents": [{"@type": "Telemetry", "name": "reading"}]}
+    },
+    {
+      "id": "command-payloads", "features": ["commands"],
+      "valid_source": true,
+      "model": {"@context": "dtmi:dtdl:context;3", "@id": "dtmi:example:Command;1", "@type": "Interface", "contents": [{"@type": "Command", "name": "echo", "request": {"name": "input", "schema": "string"}, "response": {"name": "output", "schema": "string"}}]}
+    },
+    {
+      "id": "command-invalid-request-type", "features": ["commands"],
+      "valid_source": false, "findings": ["REFERENCE_TYPE"],
+      "model": {"@context": "dtmi:dtdl:context;3", "@id": "dtmi:example:Bad;1", "@type": "Interface", "contents": [{"@type": "Command", "name": "echo", "request": {"@type": "Property", "name": "input", "schema": "string"}}]}
+    },
+    {
+      "id": "inline-parent-component", "features": ["components", "inheritance"],
+      "valid_source": true,
+      "model": {"@context": "dtmi:dtdl:context;3", "@id": "dtmi:example:Root;1", "@type": "Interface", "extends": {"@id": "dtmi:example:Base;1", "@type": "Interface"}, "contents": [{"@type": "Component", "name": "part", "schema": {"@id": "dtmi:example:Part;1", "@type": "Interface", "contents": [{"@type": "Property", "name": "label", "schema": "string"}]}}]}
+    },
+    {
+      "id": "inheritance-cycle", "features": ["inheritance"],
+      "valid_source": false, "findings": ["DEPENDENCY_CYCLE"],
+      "model": {"@context": "dtmi:dtdl:context;3", "@id": "dtmi:example:Cycle;1", "@type": "Interface", "extends": "dtmi:example:Cycle;1"}
+    },
+    {
+      "id": "nested-component", "features": ["components", "limits"],
+      "valid_source": false, "findings": ["DTDL_NESTED_COMPONENT"],
+      "model": {"@context": "dtmi:dtdl:context;3", "@id": "dtmi:example:Root;1", "@type": "Interface", "contents": [{"@type": "Component", "name": "part", "schema": {"@id": "dtmi:example:Part;1", "@type": "Interface", "contents": [{"@type": "Component", "name": "inner", "schema": {"@id": "dtmi:example:Leaf;1", "@type": "Interface"}}]}}]}
+    },
+    {
+      "id": "schema-families", "features": ["arrays", "maps", "objects", "enums", "partitions"],
+      "valid_source": true,
+      "model": {"@context": "dtmi:dtdl:context;3", "@id": "dtmi:example:Schemas;1", "@type": "Interface", "schemas": [{"@id": "dtmi:example:Record;1", "@type": "Object", "fields": [{"name": "array", "schema": {"@type": "Array", "elementSchema": "string"}}, {"name": "map", "schema": {"@type": "Map", "mapKey": {"name": "key", "schema": "string"}, "mapValue": {"name": "value", "schema": "double"}}}, {"name": "choice", "schema": {"@type": "Enum", "valueSchema": "string", "enumValues": [{"name": "on", "enumValue": "on"}]}}]}], "contents": [{"@type": "Property", "name": "record", "schema": "dtmi:example:Record;1"}]}
+    },
+    {
+      "id": "array-missing-element", "features": ["arrays"],
+      "valid_source": false, "findings": ["REQUIRED_MEMBER"],
+      "model": {"@context": "dtmi:dtdl:context;3", "@id": "dtmi:example:Bad;1", "@type": "Interface", "contents": [{"@type": "Property", "name": "items", "schema": {"@type": "Array"}}]}
+    },
+    {
+      "id": "map-invalid-key", "features": ["maps"],
+      "valid_source": false, "findings": ["SCHEMA_SHAPE"],
+      "model": {"@context": "dtmi:dtdl:context;3", "@id": "dtmi:example:Bad;1", "@type": "Interface", "contents": [{"@type": "Property", "name": "items", "schema": {"@type": "Map", "mapKey": {"name": "key", "schema": "integer"}, "mapValue": {"name": "value", "schema": "string"}}}]}
+    },
+    {
+      "id": "object-invalid-field", "features": ["objects"],
+      "valid_source": false, "findings": ["PROGRAMMING_NAME"],
+      "model": {"@context": "dtmi:dtdl:context;3", "@id": "dtmi:example:Bad;1", "@type": "Interface", "contents": [{"@type": "Property", "name": "record", "schema": {"@type": "Object", "fields": [{"name": "bad_", "schema": "string"}]}}]}
+    },
+    {
+      "id": "enum-invalid-literal", "features": ["enums"],
+      "valid_source": false, "findings": ["ENUM_VALUE"],
+      "model": {"@context": "dtmi:dtdl:context;3", "@id": "dtmi:example:Bad;1", "@type": "Interface", "contents": [{"@type": "Property", "name": "mode", "schema": {"@type": "Enum", "valueSchema": "integer", "enumValues": [{"name": "on", "enumValue": true}]}}]}
+    },
+    {
+      "id": "cross-partition-schema", "features": ["partitions"],
+      "valid_source": false, "findings": ["PARTITION_REFERENCE"],
+      "model": [{"@context": "dtmi:dtdl:context;3", "@id": "dtmi:example:A;1", "@type": "Interface", "schemas": [{"@id": "dtmi:example:Private;1", "@type": "Object"}]}, {"@context": "dtmi:dtdl:context;3", "@id": "dtmi:example:B;1", "@type": "Interface", "contents": [{"@type": "Property", "name": "record", "schema": "dtmi:example:Private;1"}]}]
+    },
+    {
+      "id": "nested-quantitative-context", "features": ["contexts", "quantitative"],
+      "valid_source": true,
+      "model": {"@context": "dtmi:dtdl:context;3", "@id": "dtmi:example:Nested;1", "@type": "Interface", "contents": [{"@context": "dtmi:dtdl:extension:quantitativeTypes;1", "@type": ["Property", "Temperature"], "name": "reading", "schema": "double", "unit": "kelvin"}]}
+    },
+    {
+      "id": "context-order", "features": ["contexts"],
+      "valid_source": false, "findings": ["CONTEXT_ORDER"],
+      "model": {"@context": ["dtmi:dtdl:extension:quantitativeTypes;1", "dtmi:dtdl:context;3"], "@id": "dtmi:example:Bad;1", "@type": "Interface"}
+    },
+    {
+      "id": "quantity-wrong-unit", "features": ["quantitative"],
+      "valid_source": false, "findings": ["QUANTITY_UNIT"],
+      "model": {"@context": ["dtmi:dtdl:context;3", "dtmi:dtdl:extension:quantitativeTypes;1"], "@id": "dtmi:example:Bad;1", "@type": "Interface", "contents": [{"@type": ["Property", "Temperature"], "name": "reading", "schema": "double", "unit": "metre"}]}
+    },
+    {
+      "id": "annotation-override-v2", "features": ["annotation", "overriding"],
+      "valid_source": true,
+      "model": {"@context": ["dtmi:dtdl:context;3", "dtmi:dtdl:extension:quantitativeTypes;1", "dtmi:dtdl:extension:annotation;2", "dtmi:dtdl:extension:overriding;2"], "@id": "dtmi:example:Override;1", "@type": "Interface", "contents": [{"@type": ["Property", "Temperature"], "name": "reading", "schema": "double", "unit": "kelvin"}, {"@type": ["Property", "ValueAnnotation", "Override"], "name": "readingUnit", "schema": "TemperatureUnit", "annotates": "reading", "overrides": "unit"}]}
+    },
+    {
+      "id": "annotation-missing-target", "features": ["annotation"],
+      "valid_source": false, "findings": ["ANNOTATION_TARGET"],
+      "model": {"@context": ["dtmi:dtdl:context;3", "dtmi:dtdl:extension:annotation;2"], "@id": "dtmi:example:Bad;1", "@type": "Interface", "contents": [{"@type": ["Property", "ValueAnnotation"], "name": "note", "schema": "string", "annotates": "absent"}]}
+    },
+    {
+      "id": "override-wrong-material", "features": ["overriding"],
+      "valid_source": false, "findings": ["EXTENSION_TYPE"],
+      "model": {"@context": ["dtmi:dtdl:context;3", "dtmi:dtdl:extension:annotation;2", "dtmi:dtdl:extension:overriding;2"], "@id": "dtmi:example:Bad;1", "@type": "Interface", "contents": [{"@type": "Property", "name": "reading", "schema": "string"}, {"@type": ["Telemetry", "ValueAnnotation", "Override"], "name": "bad", "schema": "string", "annotates": "reading", "overrides": "unit"}]}
+    },
+    {
+      "id": "historized-v2", "features": ["historization"],
+      "valid_source": true,
+      "model": {"@context": ["dtmi:dtdl:context;3", "dtmi:dtdl:extension:historization;2"], "@id": "dtmi:example:History;1", "@type": "Interface", "contents": [{"@type": ["Property", "Historized"], "name": "reading", "schema": "double"}]}
+    },
+    {
+      "id": "historized-wrong-material", "features": ["historization"],
+      "valid_source": false, "findings": ["EXTENSION_TYPE"],
+      "model": {"@context": ["dtmi:dtdl:context;3", "dtmi:dtdl:extension:historization;1"], "@id": "dtmi:example:Bad;1", "@type": ["Interface", "Historized"]}
+    },
+    {
+      "id": "required-field", "features": ["requirement"],
+      "valid_source": true,
+      "model": {"@context": ["dtmi:dtdl:context;3", "dtmi:dtdl:extension:requirement;1"], "@id": "dtmi:example:Presence;1", "@type": "Interface", "contents": [{"@type": "Property", "name": "record", "schema": {"@type": "Object", "fields": [{"@type": ["Field", "Required"], "name": "x", "schema": "double"}, {"name": "y", "schema": "double"}]}}]}
+    },
+    {
+      "id": "required-missing-material", "features": ["requirement"],
+      "valid_source": false, "findings": ["MATERIAL_TYPE", "EXTENSION_TYPE"],
+      "model": {"@context": ["dtmi:dtdl:context;3", "dtmi:dtdl:extension:requirement;1"], "@id": "dtmi:example:Bad;1", "@type": "Interface", "contents": [{"@type": "Property", "name": "record", "schema": {"@type": "Object", "fields": [{"@type": "Required", "name": "x", "schema": "string"}]}}]}
+    },
+    {
+      "id": "mqtt-v1", "features": ["mqtt"],
+      "valid_source": true,
+      "model": {"@context": ["dtmi:dtdl:context;3", "dtmi:dtdl:extension:mqtt;1"], "@id": "dtmi:example:Mqtt;1", "@type": ["Interface", "Mqtt"], "payloadFormat": "Json/ecma/404", "telemetryTopic": "sensors/{deviceId}/telemetry", "contents": [{"@type": ["Telemetry", "Indexed"], "name": "reading", "schema": "double", "index": 1}]}
+    },
+    {
+      "id": "mqtt-invalid-topic", "features": ["mqtt"],
+      "valid_source": false, "findings": ["EXTENSION_VALUE"],
+      "model": {"@context": ["dtmi:dtdl:context;3", "dtmi:dtdl:extension:mqtt;1"], "@id": "dtmi:example:Bad;1", "@type": ["Interface", "Mqtt"], "payloadFormat": "Json", "commandTopic": "devices/+/commands"}
+    },
+    {
+      "id": "geospatial", "features": ["geospatial"],
+      "valid_source": true,
+      "model": {"@context": "dtmi:dtdl:context;3", "@id": "dtmi:example:Geometry;1", "@type": "Interface", "contents": [{"@type": "Property", "name": "location", "schema": "point"}]}
+    },
+    {
+      "id": "geospatial-unknown-term", "features": ["geospatial"],
+      "valid_source": false, "findings": ["MISSING_SCHEMA"],
+      "model": {"@context": "dtmi:dtdl:context;3", "@id": "dtmi:example:Bad;1", "@type": "Interface", "contents": [{"@type": "Property", "name": "location", "schema": "geometryCollection"}]}
+    },
+    {
+      "id": "top-level-schema", "features": ["root-forms"],
+      "valid_source": false, "findings": ["INPUT"],
+      "model": {"@context": "dtmi:dtdl:context;3", "@id": "dtmi:example:Schema;1", "@type": "Object"}
+    },
+    {
+      "id": "v2-parent", "features": ["inheritance", "contexts"],
+      "valid_source": true,
+      "model": [{"@context": "dtmi:dtdl:context;3", "@id": "dtmi:example:Child;1", "@type": "Interface", "extends": "dtmi:example:Base;1"}, {"@context": "dtmi:dtdl:context;2", "@id": "dtmi:example:Base;1", "@type": "Interface", "contents": [{"@type": "Property", "name": "label", "schema": "string"}]}]
+    },
+    {
+      "id": "quantitative-canonical-alias", "features": ["quantitative", "representations"],
+      "valid_source": true,
+      "model": {"@context": ["dtmi:dtdl:context;3", "dtmi:dtdl:extension:quantitativeTypes;1"], "@id": "dtmi:example:Canonical;1", "@type": "Interface", "contents": [{"@type": ["Property", "dtmi:dtdl:extension:quantitativeTypes:v1:class:Temperature"], "name": "reading", "schema": "double", "unit": "dtmi:dtdl:extension:quantitativeTypes:v1:unit:kelvin"}]}
+    },
+    {
+      "id": "quantitative-invented-alias", "features": ["quantitative"],
+      "valid_source": false, "findings": ["UNKNOWN_TYPE"],
+      "model": {"@context": ["dtmi:dtdl:context;3", "dtmi:dtdl:extension:quantitativeTypes;1"], "@id": "dtmi:example:Invented;1", "@type": "Interface", "contents": [{"@type": ["Property", "dtmi:dtdl:extension:quantitativeTypes:class:Temperature;1"], "name": "reading", "schema": "double", "unit": "kelvin"}]}
+    },
+    {
+      "id": "mqtt-v3-recognition", "features": ["mqtt"],
+      "valid_source": true,
+      "model": {"@context": ["dtmi:dtdl:context;3", "dtmi:dtdl:extension:mqtt;3"], "@id": "dtmi:example:MqttThree;1", "@type": ["Interface", "Mqtt"], "payloadFormat": "Json"}
+    }
+  ]
+}

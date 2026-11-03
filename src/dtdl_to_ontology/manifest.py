@@ -2,6 +2,8 @@
 
 from dataclasses import asdict
 
+from .extensions import semantics
+from .geo import GEOSCHEMAS
 from .naming import lineage, property_name, target_name
 from .plan import Plan
 from .report import ordered_findings
@@ -12,7 +14,8 @@ def build_manifest(plan: Plan) -> dict:
     source_models = {}
     for identifier, model in collection.models.items():
         source_models[identifier] = {
-            "definition": model.raw,
+            "definition": model.original if model.original is not None else model.raw,
+            "normalized_definition": model.raw,
             "sources": [asdict(source) for source in sorted(model.sources)],
             "selected": identifier in plan.selection.selected,
         }
@@ -62,6 +65,29 @@ def build_manifest(plan: Plan) -> dict:
         "selection": plan.selection.inventory(),
         "target_profile": plan.profile.to_dict(),
         "source_models": source_models,
+        "normalization": [
+            {"source": asdict(change["source"]), "owner": change["owner"]}
+            for change in collection.normalization
+        ],
+        "source_elements": {
+            identity: {
+                "owner": element.owner,
+                "source": asdict(element.source),
+                "explicit": element.explicit,
+                "types": element.raw.get("@type"),
+                "active_contexts": collection.active_contexts.get(element.source, ()),
+                "semantics": {
+                    **semantics(element.raw, collection.contexts_at(element.source)),
+                    "target_enforcement": False,
+                },
+            }
+            for identity, element in sorted(
+                plan.selection.resolution.graph.elements.items()
+                if plan.selection.resolution.graph
+                else []
+            )
+        },
+        "standard_geospatial_schemas": GEOSCHEMAS,
         "target_entities": targets,
         "target_relationships": relationships,
         "policies": sorted(plan.options.policies),

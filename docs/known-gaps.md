@@ -53,6 +53,8 @@ become owner relationships. Nested components retain paths in source/target prov
 Empty or recursive component shapes block; there is no complete native component
 equivalent. Separate child entities and bindings are future designs, not fallbacks
 implemented by this policy.
+The source-language prohibition on Component-inside-Component is now diagnosed
+as `DTDL_NESTED_COMPONENT` before any projection; compatibility cannot waive it.
 
 ## Collections and enums
 
@@ -62,6 +64,11 @@ runtime serialization. A future ingestion layer must supply valid JSON values.
 `ENUM_UNDERLYING`: approve `enum-underlying` to use the underlying string/int64
 primitive. Allowed values and labels remain in the manifest; external validation
 must enforce them. Normalized child collections are not implemented.
+
+`GEOSPATIAL_MAPPING`: all six standard geometries are recognized source schemas,
+not missing user dependencies. Their identity and full source coordinate-array
+structure are retained in the manifest. Native geometry types, variable-length
+coordinate arrays and spatial querying are not provided. No new fallback was added.
 
 ## Temporal primitives
 
@@ -84,6 +91,11 @@ cardinality and natural-language rules are not equivalent enforcement.
 Localized labels and versioned DTMIs remain complete in the manifest; target
 technical names are deterministic and display names are server-derived.
 No silent annotation truncation is used.
+
+`FIELD_PRESENCE`: Requirement v1 distinguishes optional-by-default Fields from
+explicit Required Fields. Source schema typing does not enforce field presence.
+Required declarations remain blocked even with existing loss policies; the
+manifest explicitly records that target enforcement is absent.
 
 ## Relationships
 
@@ -116,6 +128,12 @@ model DTMI nor a property called uniqueID proves an instance key. Data bindings
 and deployment are outside this version. Willow has no Telemetry/Command
 declarations, so synthetic CLI fixtures cover these diagnostics.
 
+`HISTORIZATION_BINDING` and `MQTT_RUNTIME` preserve recognized source intent but
+remain non-waivable runtime/target gaps. Historized does not create change capture
+or historical queries. MQTT declarations do not create transport, command
+dispatch, topic expansion or a wire-format serializer. No new table, key, ordering
+column or backing is fabricated to make these definitions appear supported.
+
 ## Capacity
 
 `LIMIT_*` findings stop publication instead of truncating output.
@@ -125,3 +143,7 @@ generic-twin projections are not implemented. Whole-source Willow expansion is n
 a lossless single-item conversion. See [target profile](support-matrix.md).
 Local structural checks do not establish unknown transport/tenant limits or service
 acceptance; a separate authorized Fabric create/getDefinition check is necessary.
+`ONTOLOGY_NAME` rejects item display names that the live service rejects: names
+must begin with an ASCII letter, contain only ASCII letters/digits/underscores,
+and have at most 89 characters. This item-name contract is separate from the
+512-character bound on ordinary model names.

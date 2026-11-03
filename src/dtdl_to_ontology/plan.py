@@ -3,6 +3,8 @@
 from dataclasses import dataclass, field, replace
 from typing import Any
 
+from .extensions import semantics
+from .geo import GEOSCHEMAS
 from .model import Finding, Source
 from .options import Options
 from .profile import DEFAULT_PROFILE, TargetProfile
@@ -141,6 +143,21 @@ class Planner:
             )
             return None
         if isinstance(schema, str):
+            if schema in GEOSCHEMAS:
+                self.plan.findings.append(
+                    Finding(
+                        "GEOSPATIAL_MAPPING",
+                        f"Standard geometry {schema} has no faithful native target representation.",
+                        declaration.source,
+                        owner,
+                        workaround="Add native geometry/coordinate collection support to Ontology.",
+                        limitation=(
+                            "No geometry datatype or coordinate-array typing is provided; "
+                            "spatial queries are unsupported and no fallback is introduced."
+                        ),
+                    )
+                )
+                return None
             primitives = {
                 "string": "string",
                 "boolean": "boolean",
@@ -275,7 +292,7 @@ class Planner:
             declaration.owner,
             shape,
             description(raw),
-            raw,
+            self.plan.selection.resolution.collection.original_elements.get(id(raw), raw),
         )
 
     def metadata(self, declaration: Declaration, owner: str) -> None:
@@ -593,6 +610,45 @@ class Planner:
 
     def run(self) -> Plan:
         plan = self.plan
+        graph = plan.selection.resolution.graph
+        if graph:
+            for element in graph.elements.values():
+                if element.owner not in plan.selection.selected:
+                    continue
+                context = graph.collection.contexts_at(element.source)
+                contract = semantics(element.raw, context)
+                for key, code, message in (
+                    (
+                        "historization",
+                        "HISTORIZATION_BINDING",
+                        "History capture and historical queries require an explicit "
+                        "runtime binding.",
+                    ),
+                    (
+                        "mqtt",
+                        "MQTT_RUNTIME",
+                        "MQTT transport/serialization semantics have no Ontology "
+                        "definition equivalent.",
+                    ),
+                    (
+                        "presence",
+                        "FIELD_PRESENCE",
+                        "Ontology struct definitions do not enforce DTDL Required field presence.",
+                    ),
+                ):
+                    if key not in contract or (key == "presence" and not contract[key]["required"]):
+                        continue
+                    plan.findings.append(
+                        Finding(
+                            code,
+                            message,
+                            element.source,
+                            element.owner,
+                            workaround="Implement the required native Ontology capability.",
+                            limitation="Source intent is recorded but not implemented "
+                            "by target output.",
+                        )
+                    )
         for identifier in sorted(plan.selection.selected):
             model = plan.selection.resolution.collection.models.get(identifier)
             if model:

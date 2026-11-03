@@ -9,3 +9,5 @@ dist/
 .fixtures/
 output/
 .playwright-mcp/
+tools/DtdlOracle/bin/
+tools/DtdlOracle/obj/

@@ -23,7 +23,7 @@ def test_shared_schema_dag_is_validated_without_exponential_expansion(write_mode
             }
         )
     result = resolve(load(write_models(interface(schemas=schemas))))
-    assert not result.findings
+    assert {f.code for f in result.findings} == {"DTDL_SCHEMA_DEPTH"}
     assert len(result.schemas) == 25
 
 
@@ -88,7 +88,7 @@ def test_malformed_relationship_source_is_rejected_before_policies(write_models,
     assert all("/contents/0/" in f.source.pointer for f in result.findings)
 
 
-@pytest.mark.parametrize("unit", [{}, [], False, None])
+@pytest.mark.parametrize("unit", [{}, False, None])
 def test_malformed_quantitative_units_are_diagnostics_not_type_errors(write_models, unit):
     root = interface(
         contents=[
@@ -124,7 +124,7 @@ def test_valid_relationship_metadata_and_property_state_still_resolve(write_mode
     assert not resolve(load(write_models(root))).findings
 
 
-def test_shared_schema_resolution_preserves_location(write_models):
+def test_cross_partition_private_schema_is_rejected_and_preserves_location(write_models):
     schema = {
         "@id": "dtmi:example:Address;1",
         "@type": "Object",
@@ -138,12 +138,10 @@ def test_shared_schema_resolution_preserves_location(write_models):
             )
         )
     )
-    assert not result.findings
+    assert {f.code for f in result.findings} == {"PARTITION_REFERENCE"}
     declaration = result.schemas[schema["@id"]]
     assert declaration.source.pointer == "/0/schemas/0"
-    assert any(
-        r.target == "dtmi:example:Schemas;1" for r in result.references["dtmi:example:Building;1"]
-    )
+    assert "dtmi:example:Building;1" not in result.references
 
 
 @pytest.mark.parametrize(

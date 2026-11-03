@@ -6,8 +6,29 @@ DTDL.quantitativeTypes.v1.md . No contexts are fetched during conversion.
 
 QUANTITATIVE = "dtmi:dtdl:extension:quantitativeTypes;1"
 ANNOTATION = "dtmi:dtdl:extension:annotation;1"
+ANNOTATION_V2 = "dtmi:dtdl:extension:annotation;2"
 OVERRIDING = "dtmi:dtdl:extension:overriding;1"
-EXTENSIONS = {QUANTITATIVE, ANNOTATION, OVERRIDING}
+OVERRIDING_V2 = "dtmi:dtdl:extension:overriding;2"
+HISTORIZATION = "dtmi:dtdl:extension:historization;1"
+HISTORIZATION_V2 = "dtmi:dtdl:extension:historization;2"
+REQUIREMENT = "dtmi:dtdl:extension:requirement;1"
+MQTT_V1 = "dtmi:dtdl:extension:mqtt;1"
+MQTT_V2 = "dtmi:dtdl:extension:mqtt;2"
+MQTT_V3 = "dtmi:dtdl:extension:mqtt;3"
+
+EXTENSIONS = {
+    QUANTITATIVE,
+    ANNOTATION,
+    ANNOTATION_V2,
+    OVERRIDING,
+    OVERRIDING_V2,
+    HISTORIZATION,
+    HISTORIZATION_V2,
+    REQUIREMENT,
+    MQTT_V1,
+    MQTT_V2,
+    MQTT_V3,
+}
 
 QUANTITY_UNITS = {
     name: unit

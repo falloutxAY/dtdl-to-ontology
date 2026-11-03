@@ -90,7 +90,12 @@ def test_full_pinned_policy_sweep_keeps_nonwaivable_gaps_and_limits(willow):
     assert not plan.selection.inventory()["excluded"]
     assert len(plan.entities) == 3723
     assert len(plan.relationships) == 14780
-    assert sum(f.blocking for f in findings) == 25297
+    assert sum(f.blocking for f in findings) == 25303
+    assert Counter(f.code for f in willow.findings) == {
+        "EXTENSION_TYPE": 5,
+        "ANNOTATION_TARGET": 1,
+        "OVERRIDE_FIELD": 1,
+    }
     assert [(finding.code, finding.message) for finding in checks.findings if finding.blocking] == [
         ("LIMIT_RELATIONSHIPS", "Measured 14780; supported limit is 10000.")
     ]

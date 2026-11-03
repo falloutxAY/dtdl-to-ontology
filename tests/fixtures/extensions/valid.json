@@ -1,0 +1,147 @@
+[
+  {
+    "@context": ["dtmi:dtdl:context;3", "dtmi:dtdl:extension:mqtt;1"],
+    "@id": "dtmi:example:MqttOne;1",
+    "@type": ["Interface", "Mqtt"],
+    "payloadFormat": "Protobuf/3",
+    "commandTopic": "device/{deviceId}/commands",
+    "telemetryTopic": "device/{deviceId}/telemetry",
+    "contents": [
+      {
+        "@type": ["Telemetry", "Indexed"],
+        "name": "temperature",
+        "schema": "double",
+        "index": 1
+      },
+      {
+        "@type": ["Command", "Cacheable", "Idempotent"],
+        "name": "getStatus",
+        "ttl": "PT15S",
+        "response": {"name": "status", "schema": "string"}
+      }
+    ]
+  },
+  {
+    "@context": ["dtmi:dtdl:context;3", "dtmi:dtdl:extension:mqtt;2"],
+    "@id": "dtmi:example:MqttTwo;1",
+    "@type": ["Interface", "Mqtt"],
+    "payloadFormat": "Json/ecma/404",
+    "cmdServiceGroupId": "workers",
+    "telemServiceGroupId": "readers",
+    "contents": [
+      {
+        "@type": "Command",
+        "name": "announce",
+        "request": {
+          "@type": ["CommandRequest", "Transparent"],
+          "name": "message",
+          "schema": {
+            "@type": "Object",
+            "fields": [{"name": "text", "schema": "string"}]
+          }
+        }
+      }
+    ]
+  },
+  {
+    "@context": ["dtmi:dtdl:context;3", "dtmi:dtdl:extension:mqtt;3"],
+    "@id": "dtmi:example:MqttThree;1",
+    "@type": ["Interface", "Mqtt"],
+    "payloadFormat": "Json/ecma/404",
+    "contents": [
+      {
+        "@type": "Command",
+        "name": "increment",
+        "response": {
+          "name": "result",
+          "schema": {
+            "@type": ["Object", "Result"],
+            "fields": [
+              {
+                "@type": ["Field", "NormalResult"],
+                "name": "value",
+                "schema": "integer"
+              },
+              {
+                "@type": ["Field", "ErrorResult"],
+                "name": "error",
+                "schema": {
+                  "@type": ["Object", "Error"],
+                  "fields": [
+                    {
+                      "@type": ["Field", "ErrorMessage"],
+                      "name": "message",
+                      "schema": "string"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  {
+    "@context": [
+      "dtmi:dtdl:context;3",
+      "dtmi:dtdl:extension:quantitativeTypes;1",
+      "dtmi:dtdl:extension:annotation;2",
+      "dtmi:dtdl:extension:overriding;2"
+    ],
+    "@id": "dtmi:example:Annotated;1",
+    "@type": "Interface",
+    "contents": [
+      {
+        "@type": ["Telemetry", "Temperature"],
+        "name": "temperature",
+        "schema": "double",
+        "unit": "degreeFahrenheit"
+      },
+      {
+        "@type": ["Property", "ValueAnnotation", "Override"],
+        "name": "temperatureUnit",
+        "annotates": "temperature",
+        "overrides": "dtmi:dtdl:extension:quantitativeTypes:v1:property:unit",
+        "schema": "TemperatureUnit"
+      }
+    ]
+  },
+  {
+    "@context": ["dtmi:dtdl:context;3", "dtmi:dtdl:extension:historization;1"],
+    "@id": "dtmi:example:History;1",
+    "@type": "Interface",
+    "contents": [
+      {"@type": ["Property", "Historized"], "name": "setPoint", "schema": "double"},
+      {"@type": ["Telemetry", "Historized"], "name": "reading", "schema": "double"}
+    ]
+  },
+  {
+    "@context": ["dtmi:dtdl:context;3", "dtmi:dtdl:extension:requirement;1"],
+    "@id": "dtmi:example:Required;1",
+    "@type": "Interface",
+    "schemas": [
+      {
+        "@id": "dtmi:example:Required:Point;1",
+        "@type": "Object",
+        "fields": [
+          {"@type": ["Field", "Required"], "name": "x", "schema": "double"},
+          {"@type": "Field", "name": "y", "schema": "double"}
+        ]
+      }
+    ]
+  },
+  {
+    "@context": "dtmi:dtdl:context;3",
+    "@id": "dtmi:example:Geo;1",
+    "@type": "Interface",
+    "contents": [
+      {"@type": "Property", "name": "location", "schema": "point"},
+      {
+        "@type": "Telemetry",
+        "name": "route",
+        "schema": "dtmi:standard:schema:geospatial:lineString;3"
+      }
+    ]
+  }
+]

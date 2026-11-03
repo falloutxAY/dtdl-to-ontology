@@ -3,7 +3,8 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .loader import DTMI, MAX_FILE_BYTES, read_json
+from .identifiers import valid_dtmi
+from .loader import MAX_FILE_BYTES, read_json
 from .model import Finding, Source
 
 POLICIES = frozenset(
@@ -49,12 +50,12 @@ class Options:
             raise ValueError("Choose native inheritance or flatten-inheritance, not both.")
         for key in self.omissions | self.target_mappings.keys():
             identifier, separator, name = key.partition("/")
-            if not separator or not name or "*" in name or not DTMI.fullmatch(identifier):
+            if not separator or not name or "*" in name or not valid_dtmi(identifier):
                 raise ValueError(
                     f"Expected an exact DTMI/content-path relationship selector: {key}"
                 )
         for identifier in (*self.roots, *self.placeholders, *self.target_mappings.values()):
-            if not isinstance(identifier, str) or not DTMI.fullmatch(identifier):
+            if not valid_dtmi(identifier):
                 raise ValueError(f"Invalid configured DTMI: {identifier}")
         if self.omissions & self.target_mappings.keys():
             raise ValueError("A relationship cannot be both omitted and target-mapped.")

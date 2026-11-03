@@ -1,5 +1,6 @@
 """Measure the selected logical target, excluding source/diagnostic sidecars."""
 
+import re
 import unicodedata
 from dataclasses import dataclass
 
@@ -112,6 +113,16 @@ def preflight(plan: Plan, name: str = "Ontology") -> Preflight:
     profile = plan.profile
     findings = []
     global_source = Source("<target>")
+    if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,88}", name):
+        findings.append(
+            Finding(
+                "ONTOLOGY_NAME",
+                "Ontology item name must start with an ASCII letter, contain only "
+                "ASCII letters, digits and underscores, and be shorter than 90 characters.",
+                global_source,
+                limitation="Fabric rejects invalid item names before interpreting the definition.",
+            )
+        )
 
     def check(metric: str, measured: int, limit: int, source: Source, owner: str | None) -> None:
         if measured > limit:

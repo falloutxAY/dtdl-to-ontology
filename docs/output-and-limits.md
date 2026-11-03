@@ -12,6 +12,12 @@ for unchanged source bytes, paths and options; no timestamps/random IDs are adde
 Changing source files or array positions legitimately changes fingerprints or
 JSON-pointer provenance. Merely changing enumeration order does not.
 
+The manifest also retains normalized definitions, normalization records, effective
+element identities/partitions, active contexts and extension source contracts.
+`target_enforcement: false` is explicit for retained extension semantics; preserving
+intent is not implementing it. Standard geometries retain source shapes rather
+than invented target datatypes.
+
 The report separates analysis, selected mapping readiness, emission and service
 acceptance. Counts are provisional when mappings are blocked, since a complete
 target may not exist yet. `locally_validated` **never means imported or verified
@@ -85,6 +91,7 @@ cases:
 | Annotations per object | 100 |
 | Emitted descriptions / annotation values | 4,000 characters |
 | Ordinary names | 512 characters |
+| Ontology item display name | 89 ASCII letters/digits/underscores; first character a letter |
 | Complex logical-node depth / nodes per property | 32 / 4,096 |
 | Fields in any individual struct | 1,024 |
 | Normalized logical document nodes / depth | 1,000,000 / 160 |

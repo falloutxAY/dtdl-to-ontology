@@ -21,6 +21,21 @@ def codes(plan):
     return {finding.code for finding in preflight(plan).findings}
 
 
+@pytest.mark.parametrize("name", ["A", "A_0", "A" * 89])
+def test_ontology_item_name_valid_boundary(plan, name):
+    assert "ONTOLOGY_NAME" not in {f.code for f in preflight(plan, name).findings}
+
+
+@pytest.mark.parametrize("name", ["0Name", "_Name", "Has space", "Has-hyphen", "A" * 90])
+def test_ontology_item_name_rejects_service_invalid_forms(plan, name):
+    assert "ONTOLOGY_NAME" in {f.code for f in preflight(plan, name).findings}
+
+
+def test_empty_item_name_preserves_explicit_platform_failure(plan):
+    with pytest.raises(ValueError, match="must not be empty"):
+        preflight(plan, "")
+
+
 @pytest.mark.parametrize("kind,limit", [("entities", 10_000), ("relationships", 10_000)])
 def test_actual_item_count_boundary_and_one_over(plan, kind, limit):
     identity, entity = next(iter(plan.entities.items()))

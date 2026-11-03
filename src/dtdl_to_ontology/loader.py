@@ -3,11 +3,14 @@
 import hashlib
 import json
 import math
-import re
 from pathlib import Path
 from typing import Any
 
+from .identifiers import DTMI as DTMI
+from .identifiers import valid_dtmi
 from .model import Collection, Finding, Model, Source
+from .normalization import Normalizer
+from .source_limits import interface_size, object_sizes
 
 CORE_CONTEXT = "dtmi:dtdl:context;3"
 MAX_FILE_BYTES = 16 * 1024 * 1024
@@ -15,7 +18,6 @@ MAX_TOTAL_BYTES = 128 * 1024 * 1024
 MAX_FILES = 20_000
 MAX_DEPTH = 128
 MAX_NODES = 1_000_000
-DTMI = re.compile(r"dtmi:(?:[A-Za-z_][A-Za-z0-9_]*:)*[A-Za-z_][A-Za-z0-9_]*;[1-9]\d*(?:\.\d+)?$")
 
 
 def object_without_duplicates(pairs: list[tuple[str, Any]]) -> dict:
@@ -65,6 +67,58 @@ def read_json(data: bytes) -> Any:
 
 def load(path: Path) -> Collection:
     result = Collection()
+    normalizer = Normalizer()
+
+    def collect(raw: Any, source: Source, top: bool = False) -> None:
+        if not isinstance(raw, dict):
+            return
+        source = normalizer.sources.get(id(raw), source)
+        raw_types = raw.get("@type", [])
+        raw_types = [raw_types] if isinstance(raw_types, str) else raw_types
+        is_interface = isinstance(raw_types, list) and "Interface" in raw_types
+        if top and not is_interface:
+            result.findings.append(Finding("INPUT", "Expected a DTDLv3 Interface object.", source))
+            return
+        if is_interface:
+            identifier = raw.get("@id")
+            if not valid_dtmi(identifier, "interface"):
+                result.findings.append(
+                    Finding(
+                        "IDENTIFIER",
+                        "Invalid interface DTMI (maximum 128 characters).",
+                        source.child("@id"),
+                    )
+                )
+                return
+            contexts = normalizer.contexts.get(source, ())
+            if not set(contexts) & {CORE_CONTEXT, "dtmi:dtdl:context;2"}:
+                result.findings.append(
+                    Finding("VERSION", "Only DTDLv3 context is supported.", source, identifier)
+                )
+                return
+            previous = result.models.get(identifier)
+            if previous:
+                if previous.raw != raw:
+                    result.findings.append(
+                        Finding(
+                            "DUPLICATE_ID",
+                            f"Conflicting DTMI; first declared at {previous.source}.",
+                            source,
+                            identifier,
+                        )
+                    )
+                else:
+                    previous.sources.append(source)
+                return
+            result.models[identifier] = Model(
+                identifier, raw, source, [source], normalizer.originals.get(id(raw))
+            )
+        for key, child in raw.items():
+            values = child if isinstance(child, list) else [child]
+            for index, value in enumerate(values):
+                if isinstance(value, dict):
+                    collect(value, source.child(key, index))
+
     if path.is_symlink():
         result.findings.append(
             Finding("INPUT", "Symlink input is not supported.", Source(path.name))
@@ -96,48 +150,36 @@ def load(path: Path) -> Collection:
             result.findings.append(Finding("INPUT", str(error), source))
             continue
         result.fingerprints[source.file] = hashlib.sha256(data).hexdigest()
+        sizes = object_sizes(data, document, source)
         entries = document if isinstance(document, list) else [document]
         for index, raw in enumerate(entries):
             location = source.child(index) if isinstance(document, list) else source
-            if not isinstance(raw, dict) or raw.get("@type") != "Interface":
-                result.findings.append(
-                    Finding("INPUT", "Expected a DTDLv3 Interface object.", location)
+            if not isinstance(raw, dict):
+                result.findings.append(Finding("INPUT", "Expected an Interface object.", location))
+                continue
+            normalized = normalizer.element(raw, location)
+            collect(normalized, location, top=True)
+        for model in result.models.values():
+            if model.source.file == source.file and model.original is not None:
+                result.interface_bytes[model.source] = interface_size(
+                    model.original, model.source, sizes
                 )
-                continue
-            identifier = raw.get("@id")
-            if not isinstance(identifier, str) or not DTMI.fullmatch(identifier):
-                result.findings.append(Finding("IDENTIFIER", "Invalid interface DTMI.", location))
-                continue
-            contexts = raw.get("@context", [])
-            contexts = [contexts] if isinstance(contexts, str) else contexts
-            if not isinstance(contexts, list) or not all(isinstance(c, str) for c in contexts):
-                result.findings.append(
-                    Finding(
-                        "CONTEXT", "Context must be a string or string array.", location, identifier
-                    )
-                )
-                continue
-            if CORE_CONTEXT not in contexts or any(
-                c.startswith("dtmi:dtdl:context;") and c != CORE_CONTEXT for c in contexts
-            ):
-                result.findings.append(
-                    Finding("VERSION", "Only DTDLv3 context is supported.", location, identifier)
-                )
-                continue
-            previous = result.models.get(identifier)
-            if previous:
-                if previous.raw != raw:
-                    result.findings.append(
-                        Finding(
-                            "DUPLICATE_ID",
-                            f"Conflicting DTMI; first declared at {previous.source}.",
-                            location,
-                            identifier,
-                        )
-                    )
-                else:
-                    previous.sources.append(location)
-                continue
-            result.models[identifier] = Model(identifier, raw, location, [location])
+    if result.models and not any(
+        CORE_CONTEXT in normalizer.contexts.get(model.source, ())
+        for model in result.models.values()
+    ):
+        result.findings.append(
+            Finding(
+                "VERSION",
+                "A v3 model is required; v2 is supported only as a dependency.",
+                next(iter(result.models.values())).source,
+            )
+        )
+    result.findings.extend(normalizer.findings)
+    result.active_contexts = normalizer.contexts
+    result.element_sources = normalizer.sources
+    result.original_elements = normalizer.originals
+    result.member_sources = normalizer.members
+    result.normalization = normalizer.changes
     result.models = dict(sorted(result.models.items()))
     return result

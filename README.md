@@ -118,3 +118,11 @@ by the service.
 
 Acquire the optional full [Willow fixture](docs/willow-fixture.md) explicitly.
 The pinned source has 3,705 interfaces; its known gaps must not be silently fixed.
+
+The authored [DTDL source conformance corpus](tests/fixtures/conformance/cases.json)
+and generated boundary tests run independently of Willow. Optional tooling under
+`tools\DtdlOracle` checks the same models against pinned DTDLParser 1.1.3; .NET
+is not required by the converter. CI checks source/target regressions and recorded
+parser differences separately. See [source dispositions](docs/dtdl-support.md)
+and [conformance evidence](docs/conformance-evidence.md). No new lossy target
+workarounds are introduced by this source-language work.

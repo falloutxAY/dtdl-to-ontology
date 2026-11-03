@@ -145,7 +145,7 @@ def test_fixed_objects_require_separate_approval_and_preserve_full_shape(write_m
     assert "complexDataType" not in parts and "backingConfiguration" not in parts
 
 
-def test_nested_component_strings_retain_nested_shapes_and_identity_approval(write_models):
+def test_nested_component_cannot_be_approved_by_json_policies(write_models):
     leaf = interface("Leaf", [{"@type": "Property", "name": "label", "schema": "string"}])
     detail = interface("Detail", [{"@type": "Component", "name": "inner", "schema": leaf["@id"]}])
     root = interface("Root", [{"@type": "Component", "name": "detail", "schema": detail["@id"]}])
@@ -157,12 +157,10 @@ def test_nested_component_strings_retain_nested_shapes_and_identity_approval(wri
     plan = make_plan(
         resolution, replace(options, policies=options.policies | {"component-properties"})
     )
-    assert not plan.blocked
-    prop = plan.entities[root["@id"]].properties[0]
-    assert prop.logical_type == {"kind": "primitive", "dataType": "string"}
-    nested = prop.pre_fallback_logical_type["fields"][0]
-    assert nested["name"] == "inner" and nested["type"]["kind"] == "struct"
-    assert nested["type"]["fields"][0]["name"] == "label"
+    assert plan.blocked
+    assert any(f.code == "DTDL_NESTED_COMPONENT" and f.blocking for f in plan.findings)
+    with pytest.raises(ValueError, match="blocking"):
+        build_parts(plan, "InvalidNestedComponent")
 
 
 @pytest.mark.parametrize(
