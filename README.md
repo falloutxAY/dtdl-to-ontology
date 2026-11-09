@@ -80,6 +80,9 @@ data, and [bindings](https://learn.microsoft.com/fabric/iq/ontology/how-to-bind-
 - [Testing](docs/testing.md): official specification corpus, independent samples, Willow, and contributor checks.
 - `examples/`: small runnable models; `src/`: converter; `tests/`: regressions.
 
+For Willow, use the [bounded Building example](docs/testing.md#independent-samples-and-willow):
+it retains concrete relationships and lists the exact targetless omissions.
+
 [Apache-2.0](LICENSE). Downloaded fixtures retain their upstream licenses;
 see [attribution](docs/testing.md#third-party-sources). This is an independent
 project, not a Microsoft-supported migration service.

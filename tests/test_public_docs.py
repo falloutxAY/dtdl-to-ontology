@@ -20,6 +20,14 @@ def test_public_document_links_resolve():
             assert (path.parent / destination).is_file(), (path, target)
 
 
+def test_public_building_config_matches_recorded_readable_projection_choices():
+    config = json.loads((ROOT / "examples" / "willow-building.json").read_text())
+    record = json.loads((ROOT / "docs" / "evidence" / "2026-11-09-readable-names.json").read_text())
+    assert set(config["policies"]) == set(record["policies"])
+    assert set(config["omit_relationships"]) == set(record["omissions"])
+    assert len(config["omit_relationships"]) == 5
+
+
 def test_examples_still_match_recorded_accepted_definition_shapes():
     # This is a local drift check, not a new service acceptance run.
     record = json.loads((ROOT / "docs" / "evidence" / "2026-11-09.json").read_text())

@@ -13,6 +13,7 @@ from dtdl_to_ontology.plan import make_plan
 from dtdl_to_ontology.preflight import preflight
 from dtdl_to_ontology.report import build_report, canonical_json
 from dtdl_to_ontology.resolver import resolve, types
+from dtdl_to_ontology.selection import relationship_paths
 
 REVISION = "1d19b2584df02e05714628a57a7ddd69edeef29c"
 FIXTURE = Path(__file__).parents[1] / ".fixtures" / "willow"
@@ -121,7 +122,7 @@ def test_bounded_building_projection_is_complete_explicit_and_deterministic(will
     )
     rejected = make_plan(willow, replace(options, policies=options.policies - {"json-objects"}))
     unbound = [f for f in rejected.findings if f.code == "UNBOUND_STRUCT"]
-    assert len(unbound) == 15 and all(f.blocking for f in unbound)
+    assert len(unbound) == 19 and all(f.blocking for f in unbound)
     with pytest.raises(ValueError, match="blocking"):
         build_parts(rejected, "Rejected")
     plan = make_plan(willow, options)
@@ -132,8 +133,13 @@ def test_bounded_building_projection_is_complete_explicit_and_deterministic(will
         f"dtmi:com:willowinc:{name};1"
         for name in (
             "Address",
+            "Agent",
             "Building",
+            "Calendar",
+            "Collection",
             "Component",
+            "EventCollection",
+            "Settings",
             "Space",
             "SpaceArea",
             "SpaceCapacity",
@@ -144,24 +150,44 @@ def test_bounded_building_projection_is_complete_explicit_and_deterministic(will
         )
     }
     assert plan.selection.selected == expected
-    assert len(plan.selection.inventory()["excluded"]) == 3695
-    assert checks.measurements["entities"] == 10
-    assert checks.measurements["relationships"] == 0
+    assert len(plan.selection.inventory()["excluded"]) == 3690
+    assert checks.measurements["entities"] == 15
+    assert checks.measurements["relationships"] == 30
     assert max(checks.measurements["properties_per_entity"].values()) == 37
-    assert sum(checks.measurements["properties_per_entity"].values()) == 79
+    assert sum(checks.measurements["properties_per_entity"].values()) == 128
     fallbacks = [f for f in plan.findings if f.code == "UNBOUND_STRUCT"]
-    assert len(fallbacks) == 15 and all(f.approved for f in fallbacks)
+    assert len(fallbacks) == 19 and all(f.approved for f in fallbacks)
     assert (
         sum(
             prop.pre_fallback_logical_type is not None
             for entity in plan.entities.values()
             for prop in entity.properties
         )
-        == 15
+        == 19
     )
     omissions = [f for f in plan.findings if f.code == "RELATIONSHIP_OMITTED" and f.selected]
-    assert len(omissions) == 22
+    expected_omissions = {
+        f"dtmi:com:willowinc:{name};1/servedBy"
+        for name in ("Building", "Space", "Calendar", "Collection", "EventCollection")
+    }
+    assert options.omissions == expected_omissions
+    assert plan.selection.inventory()["omissions"] == sorted(expected_omissions)
+    assert len(omissions) == 5
+    assert {f.message.removeprefix("Explicitly omitted relationship: ") for f in omissions} == (
+        expected_omissions
+    )
     assert all(f.approved and not f.blocking for f in omissions)
+    expected_relationships = {
+        f"{owner}/{'/'.join(path)}"
+        for owner in expected
+        for path, _ in relationship_paths(willow, owner)
+    } - expected_omissions
+    assert len(expected_relationships) == 30
+    assert {relation.identity for relation in plan.relationships} == expected_relationships
+    assert all(
+        relation.from_entity in expected and relation.to_entity in expected
+        for relation in plan.relationships
+    )
     constructs = set()
     pending = [willow.collection.models[identifier].raw for identifier in expected]
     while pending:
@@ -173,13 +199,29 @@ def test_bounded_building_projection_is_complete_explicit_and_deterministic(will
             pending.extend(item)
     assert {"Object", "Array", "Map", "Enum", "Component", "Area"} <= constructs
     parts = build_parts(plan, "WillowBuilding")
-    assert len(parts) == 15
+    assert len(parts) == 21
     assert "namespaces/com_willowinc.tmdl" in parts
     building = parts["entities/com_willowinc#Building.tmdl"]
     assert "\tproperty 'height'" in building
     assert "annotation 'dtdlModelVersion' = 1\n" in building
     assert "annotation 'dtdlValueEncoding' = json\n" in building
-    assert "entityRelationships.tmdl" not in parts
+    assert "entityRelationships.tmdl" in parts
+    assert "com_willowinc#Building_ownedBy" in parts["entityRelationships.tmdl"]
+    assert "com_willowinc#Building_hasSettings" in parts["entityRelationships.tmdl"]
+    evidence = json.loads(
+        (
+            Path(__file__).parents[1] / "docs" / "evidence" / "2026-11-09-readable-names.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert options.policies == frozenset(evidence["policies"])
+    assert expected_omissions == set(evidence["omissions"])
+    assert evidence["source_revision"] == REVISION
+    assert evidence["counts"] == {
+        "entity_types": len(plan.entities),
+        "property_declarations": sum(len(entity.properties) for entity in plan.entities.values()),
+        "relationship_definitions": len(plan.relationships),
+        "definition_parts": len(parts),
+    }
     assert not any("baseEntityType" in text for text in parts.values())
     assert not any("complexDataType" in text for text in parts.values())
     reordered = resolve(
