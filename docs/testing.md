@@ -3,6 +3,8 @@
 Coverage order is **DTDL specification -> independent application samples ->
 Willow scale test -> Fabric acceptance**, not Willow as the language definition.
 No ordinary test downloads data or needs Fabric credentials.
+Use [requirements and acceptance checks](requirements.md) as the maintained
+checklist; passing local tests is separate from pending data/runtime acceptance.
 
 ## Local checks
 
@@ -102,5 +104,4 @@ source is relicensed under this project's Apache-2.0 license.
 
 Fixtures are downloaded unchanged into ignored `.fixtures/`; generated reports
 belong in ignored `output/`. Keep credentials, tenant IDs, customer models, raw
-backend source and private evidence out of contributions. Historical development
-plans under `openspec/` are not the current public support contract.
+backend source and private evidence out of contributions.
