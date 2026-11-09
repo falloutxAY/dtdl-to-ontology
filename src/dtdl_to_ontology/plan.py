@@ -6,6 +6,7 @@ from typing import Any
 from .extensions import semantics
 from .geo import GEOSCHEMAS
 from .model import Finding, Source
+from .naming import model_annotations
 from .options import Options
 from .profile import DEFAULT_PROFILE, TargetProfile
 from .resolver import Declaration, Resolution, types
@@ -45,6 +46,7 @@ class RelationshipPlan:
     source: Source
     description: str = ""
     annotations: dict[str, str] = field(default_factory=dict)
+    label: str = ""
 
 
 @dataclass
@@ -318,7 +320,7 @@ class Planner:
         if fields:
             self.loss(
                 "METADATA_SEMANTICS",
-                f"Manifest-only source semantics: {', '.join(sorted(fields))}.",
+                f"Source metadata without equivalent enforcement: {', '.join(sorted(fields))}.",
                 declaration,
                 owner,
                 "metadata-semantics",
@@ -609,6 +611,41 @@ class Planner:
                     prop.pre_fallback_logical_type = prop.logical_type
                     prop.logical_type = {"kind": "primitive", "dataType": "string"}
 
+    def provenance(self) -> None:
+        graph = self.plan.selection.resolution.graph
+        declarations = {e.source: e.raw for e in graph.elements.values()} if graph else {}
+        for identity, entity in self.plan.entities.items():
+            entity.annotations.update(model_annotations(identity))
+            if entity.role != "interface":
+                entity.annotations["dtdlProjectionRole"] = entity.role
+            for prop in entity.properties:
+                prop.annotations.update(model_annotations(prop.owner))
+                prop.annotations["dtdlSourceName"] = prop.name
+                raw = declarations.get(prop.source, prop.original)
+                schema = raw.get("schema")
+                definition = (
+                    self.plan.selection.resolution.schemas.get(schema)
+                    if isinstance(schema, str)
+                    else None
+                )
+                resolved_schema = definition.raw if definition else schema
+                if isinstance(schema, str):
+                    prop.annotations["dtdlSchema"] = schema
+                elif isinstance(schema, dict) and types(schema):
+                    prop.annotations["dtdlSchema"] = ", ".join(sorted(types(schema)))
+                if isinstance(raw.get("unit"), str):
+                    prop.annotations["dtdlUnit"] = raw["unit"]
+                if prop.pre_fallback_logical_type is not None or (
+                    isinstance(resolved_schema, dict) and types(resolved_schema) & {"Array", "Map"}
+                ):
+                    prop.annotations["dtdlValueEncoding"] = "json"
+        for relation in self.plan.relationships:
+            relation.annotations.update(model_annotations(relation.identity))
+            path = relation.identity.partition("/")[2]
+            relation.annotations["dtdlSourceName"] = path.partition("#")[0]
+            relation.annotations["dtdlSourceSelector"] = relation.identity
+            relation.label = path.rpartition("#")[2] if "#" in path else path
+
     def run(self) -> Plan:
         plan = self.plan
         graph = plan.selection.resolution.graph
@@ -691,6 +728,7 @@ class Planner:
                 )
         self.relationships()
         self.unbound_structs()
+        self.provenance()
         return plan
 
 

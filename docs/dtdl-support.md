@@ -14,7 +14,7 @@ See [tests](testing.md) and [service evidence](fabric-acceptance.md).
 
 | DTDL v3 construct | Converter disposition | What does not carry over automatically |
 | --- | --- | --- |
-| Interface, DTMI, versions | Entity type; deterministic namespace/name/lineage; original DTMI in manifest | A model identifier is not an instance key |
+| Interface, DTMI, versions | Readable entity/namespace names; original DTMI/version in annotations and manifest; stable source-based lineage | Conflicting versions require explicit aliases; a model identifier is not an instance key |
 | Single-parent `extends` | Native with `{"inheritance": true}` config, or explicit `flatten-inheritance` | Tenant rollout; polymorphic query equivalence |
 | Multiple-parent/diamond `extends` | Resolve all parents and conflicts; `flatten-inheritance` materializes effective properties | Native multiple-parent ancestry; never choose one parent silently |
 | Property: string, boolean, long, double, dateTime | Direct scalar definition | Instance-value validation, null/missing rules, timezone conversion |
@@ -37,6 +37,7 @@ The current public target contract exposes **one `baseEntityType`**, not a list.
 Single-parent inheritance has live acceptance evidence; multiple-parent DTDL
 input must be flattened or remodeled. This is a statement about the supported
 public conversion contract, not every internal or future Ontology capability.
+See [naming and metadata](naming.md) for conflict resolution and version provenance.
 
 ## Representations, references and extensions
 

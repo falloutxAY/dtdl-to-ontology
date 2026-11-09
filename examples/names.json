@@ -1,0 +1,8 @@
+{
+  "names": {
+    "entities": {
+      "dtmi:example:Settings;1": "SettingsLegacy",
+      "dtmi:example:Settings;2": "SettingsCurrent"
+    }
+  }
+}

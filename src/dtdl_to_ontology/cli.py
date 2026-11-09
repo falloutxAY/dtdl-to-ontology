@@ -6,6 +6,7 @@ import os
 import sys
 import uuid
 from collections.abc import Sequence
+from dataclasses import replace
 from pathlib import Path
 
 from . import __version__
@@ -13,8 +14,9 @@ from .definition import build_parts
 from .fabric import FabricApiError, deploy_definition
 from .loader import load
 from .manifest import build_manifest
+from .naming import name_conflicts
 from .options import load_options
-from .plan import make_plan
+from .plan import Plan, make_plan
 from .preflight import preflight
 from .publication import ensure_destination, publish
 from .report import build_report, canonical_json, readable_report
@@ -50,6 +52,11 @@ def parser() -> argparse.ArgumentParser:
             "--source-revision", help="Source revision recorded as supplied, not proven."
         )
         command.add_argument("--json", action="store_true", help="Write a machine-readable report.")
+        command.add_argument(
+            "--interactive-names",
+            action="store_true",
+            help="Ask for explicit naming aliases on conflicts; requires a terminal, not --json.",
+        )
         if name == "convert":
             command.add_argument(
                 "--output", required=True, type=Path, help="New/empty output folder."
@@ -138,6 +145,38 @@ def _format_semantic_differences(differences: dict) -> str:
     return "".join(lines)
 
 
+def resolve_names(plan: Plan) -> Plan:
+    while conflicts := name_conflicts(plan):
+        names = {
+            category: dict(entries) for category, entries in plan.options.name_overrides.items()
+        }
+        conflict = conflicts[0]
+        print(conflict.finding().message, file=sys.stderr)
+        for key in conflict.keys:
+            while True:
+                print(
+                    f"Name for names.{conflict.category}[{key}] (blank cancels): ",
+                    end="",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                try:
+                    value = input().strip()
+                except (EOFError, KeyboardInterrupt) as error:
+                    raise ValueError("Naming resolution cancelled; nothing published.") from error
+                if not value:
+                    raise ValueError("Naming resolution cancelled; nothing published.")
+                names.setdefault(conflict.category, {})[key] = value
+                try:
+                    options = replace(plan.options, name_overrides=names)
+                except ValueError as error:
+                    print(str(error), file=sys.stderr)
+                else:
+                    break
+        plan = make_plan(plan.selection.resolution, options, plan.profile)
+    return plan
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     for stream in (sys.stdout, sys.stderr):
         if isinstance(stream, io.TextIOWrapper):
@@ -170,6 +209,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             roots=args.root,
             source_revision=args.source_revision,
         )
+        if args.interactive_names and (args.json or not sys.stdin.isatty()):
+            raise ValueError(
+                "--interactive-names requires a terminal and cannot be used with --json."
+            )
         if args.command == "convert":
             ensure_destination(args.output)
             if not args.name.strip():
@@ -178,6 +221,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 uuid.UUID(args.logical_id)
         collection = load(args.input)
         plan = make_plan(resolve(collection), options)
+        if args.interactive_names:
+            plan = resolve_names(plan)
         checks = preflight(plan, args.name if args.command == "convert" else "Ontology")
         plan.findings.extend(checks.findings)
         parts = None
@@ -191,6 +236,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         report["measurements_provisional"] = plan.blocked
         report["source_loading_complete"] = not collection.findings
         report["runtime_data_bindings"] = "not_generated"
+        report["naming_strategy"] = "readable-v1"
+        report["name_overrides"] = plan.options.name_overrides
         if args.command == "convert":
             publish(args.output, report, build_manifest(plan), parts)
             published = True

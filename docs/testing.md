@@ -16,6 +16,9 @@ python -m ruff format --check .
 Tests cover source validity, policy decisions, deterministic payloads/manifests,
 failure recovery, CLI examples, and a wheel installed outside the checkout.
 Optional application-corpus tests explicitly skip when fixtures are absent.
+Naming regressions include case/version/namespace collisions, inherited property
+scopes, explicit aliases, prompt cancellation, JSON/CI non-interactivity,
+provenance annotations, and service-normalized annotation ordering/label strings.
 
 ## Official specification sweep
 
@@ -55,7 +58,8 @@ temperature-device projection converts with explicit policies.
 Willow's 3,705 Interfaces are a **secondary** unchanged scale corpus. They do
 not cover Telemetry or Command declarations. Full conversion is blocked by
 source issues (including an absent LeaseContract and invalid annotation/unit
-declarations) and more than 10,000 planned relationships.
+declarations), more than 10,000 planned relationships, and the full logical
+document budget including emitted provenance metadata.
 
 For a deliberately bounded property projection:
 

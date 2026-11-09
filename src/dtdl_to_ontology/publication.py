@@ -31,6 +31,12 @@ def publish(
     try:
         for filename, value in (("report.json", report), ("manifest.json", manifest)):
             (stage / filename).write_text(canonical_json(value), encoding="utf-8", newline="\n")
+        if manifest.get("name_overrides"):
+            (stage / "naming.json").write_text(
+                canonical_json({"names": manifest["name_overrides"]}),
+                encoding="utf-8",
+                newline="\n",
+            )
         (stage / "report.md").write_text(readable_report(report), encoding="utf-8", newline="\n")
         if parts is not None:
             if (

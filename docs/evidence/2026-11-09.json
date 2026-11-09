@@ -1,6 +1,7 @@
 {
   "date": "2026-11-09",
   "profile": "fabric-new-2026-11-09",
+  "naming_strategy": "legacy-hashed",
   "scope": "Public Fabric create/getDefinition and normalized supported-field comparison; no runtime equivalence",
   "environment": "Authorized preview test workspace; tenant and resource identifiers omitted",
   "hash_scope": "Exact bytes from the test checkout; source JSON used CRLF. Definition hashes include the unique test display name.",

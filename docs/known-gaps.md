@@ -11,6 +11,15 @@ JSON pointer, fidelity and a suggested action. Selecting an independent valid
 root is allowed; excluded models remain visible in reports. Never repair a
 vendor model silently. [Source coverage](dtdl-support.md).
 
+## Naming
+
+`NAME_CONFLICT` blocks case-insensitive collisions after readable-name mapping.
+`NAME_CONFIG` identifies stale aliases, reserved names or names that cannot be
+published as portable part paths. Supply exact reviewed aliases through
+`--config`, or use `--interactive-names` in a terminal. Hashes, model-version
+suffixes and truncation are never added automatically.
+[Naming and upgrade guidance](naming.md).
+
 ## Inheritance
 
 **Implemented:** `flatten-inheritance` copies effective properties from every
@@ -64,7 +73,9 @@ A time-of-day, duration, and timestamp are not interchangeable.
 ## Metadata and constraints
 
 **Implemented:** `metadata-semantics` keeps units, writable intent, numeric
-widths, labels and constraints in the manifest. It does not enforce them.
+widths, labels and constraints in the manifest. Small source-identity,
+version, schema/unit and JSON-encoding annotations also accompany the definition.
+Metadata does not enforce these semantics.
 `FIELD_PRESENCE` remains blocking for Required fields.
 
 **Guidance:** implement range/enum/presence validation and unit conversion in a

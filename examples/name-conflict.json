@@ -1,0 +1,14 @@
+[
+  {
+    "@context": "dtmi:dtdl:context;3",
+    "@id": "dtmi:example:Settings;1",
+    "@type": "Interface",
+    "contents": [{"@type": "Property", "name": "enabled", "schema": "boolean"}]
+  },
+  {
+    "@context": "dtmi:dtdl:context;3",
+    "@id": "dtmi:example:Settings;2",
+    "@type": "Interface",
+    "contents": [{"@type": "Property", "name": "enabled", "schema": "boolean"}]
+  }
+]

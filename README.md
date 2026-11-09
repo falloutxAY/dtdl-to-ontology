@@ -34,6 +34,12 @@ dtdl-to-ontology convert .\models --root "dtmi:example:Sensor;1" --name Sensors 
 Start in strict mode. Resolve errors, inspect the report, and approve **only**
 the named losses you intend. `--compatibility` alone approves nothing.
 
+Output uses readable names such as `com_willowinc#Settings` and `height`.
+Source identity and model version live in key/value annotations such as
+`dtdlModelId` and `dtdlModelVersion`, not visible hash/version suffixes.
+Conflicts block publication; use explicit aliases or `--interactive-names`
+in a terminal. See [naming, metadata and upgrade guidance](docs/naming.md).
+
 ## What can migrate?
 
 | Path | Examples | Boundary |

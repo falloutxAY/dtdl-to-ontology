@@ -9,6 +9,9 @@
 `INPUT` is a local JSON file or directory. Use `--root DTMI` repeatedly to select
 roots; their required dependencies are included. No root means all Interfaces.
 Use `--json` for machine-readable console output and `--help` for every option.
+`--interactive-names` asks for explicit aliases only when conflicts occur in a
+terminal; it cannot be combined with `--json`. Otherwise conflicts block output
+with actionable diagnostics. [Names and annotations](naming.md).
 `--source-revision` records your supplied revision; it does not authenticate it.
 
 ## Approving transformations
@@ -31,7 +34,8 @@ For element-specific decisions, pass `--config mapping.json`:
 
 Other supported fields are `target_mappings` (selector -> target DTMI),
 `placeholders` (DTMI array, requiring `placeholder-targets`), and `inheritance`
-(boolean tenant capability declaration). Target mapping itself requires
+(boolean tenant capability declaration). `names` contains explicit readable-name
+aliases and does not require compatibility mode. Target mapping itself requires
 `--compatibility`; a placeholder does not supply the missing definition.
 Selectors are exact, never wildcards. Native inheritance and
 `flatten-inheritance` cannot be combined. See [policy effects](known-gaps.md).
@@ -45,6 +49,7 @@ Successful conversion publishes:
 | `definition.json`, `parts/` | Fabric InlineBase64 envelope and equivalent readable UTF-8 parts |
 | `manifest.json` | Original/normalized source, fingerprints, identities, selection, origins and losses |
 | `report.json`, `report.md` | Findings, readiness, emission and verification status |
+| `naming.json` (when aliases exist) | Reusable explicit naming decisions for `--config` |
 
 Only actual Fabric parts enter `definition.json`. Complete originals and
 pre-fallback object shapes remain in the manifest, not hidden upload parts.
@@ -91,7 +96,12 @@ Profile `fabric-new-2026-11-09`, based on the [public contract][contract]:
 
 Counts include generated edge entities/links and inherited properties, not just
 files. Whole-document checks use the planned logical model, not Base64 transport
-or source sidecars. JSON fallbacks count as emitted String properties. Unknown
+or source sidecars. Provenance annotations count toward annotation/text/document
+budgets, but do not add entity properties. Names used as part filenames have a
+250-character portability guard; choose aliases instead of truncating.
+`ANNOTATION_TEXT` rejects empty, multiline/control-containing or untrimmed
+annotation values rather than changing them through JSON escaping.
+JSON fallbacks count as emitted String properties. Unknown
 tenant/transport limits remain unverified. The separate backing-table engine
 budget is not a sizing guarantee for this unbound converter.
 

@@ -1,0 +1,63 @@
+{
+  "date": "2026-11-09",
+  "converter_version": "0.2.0",
+  "naming_strategy": "readable-v1",
+  "source_repository": "WillowInc/opendigitaltwins-building",
+  "source_revision": "1d19b2584df02e05714628a57a7ddd69edeef29c",
+  "root": "dtmi:com:willowinc:Building;1",
+  "scope": "Approved Building dependency closure; definition acceptance, not instance-data or runtime equivalence",
+  "counts": {
+    "entity_types": 15,
+    "property_declarations": 128,
+    "relationship_definitions": 30,
+    "definition_parts": 21
+  },
+  "observed": {
+    "namespace": "com_willowinc",
+    "entity_name": "Settings",
+    "property_name": "height",
+    "relationship_name": "Building_ownedBy",
+    "relationship_label": "ownedBy",
+    "settings_annotations": {
+      "dtdlModelId": "dtmi:com:willowinc:Settings;1",
+      "dtdlModelVersion": "1",
+      "dtdlSourceName": "Settings"
+    }
+  },
+  "service_results": {
+    "create_http_status": 202,
+    "create_operation_status": "Succeeded",
+    "label_only_update_http_status": 200,
+    "metadata_only_update_http_status": 200,
+    "get_definition_http_status": 200,
+    "supported_fields_match": true,
+    "semantic_equivalence": "not_asserted"
+  },
+  "corrections": [
+    "The service writes entity annotations after properties; the comparator now respects indentation instead of attributing them to the last property.",
+    "String-valued relationship labels must not use identifier-style single quotes; the initial UI showed literal quotes, and a separately approved update corrected only the new test item.",
+    "Annotation values are plain text, not JSON literals. A separately approved metadata-only update removed unintended quotation marks from the new item's key/value metadata."
+  ],
+  "corrected_definition_sha256": "5a407650e8a8c0c74f2416f7f01477f1e6675de196ba268b406884117d0e336e",
+  "hash_scope": "Exact corrected test payload bytes; includes the test display name",
+  "policies": [
+    "component-properties",
+    "enum-underlying",
+    "flatten-inheritance",
+    "json-collections",
+    "json-objects",
+    "metadata-semantics",
+    "omit-relationships",
+    "temporal-strings"
+  ],
+  "omissions": [
+    "dtmi:com:willowinc:Building;1/servedBy",
+    "dtmi:com:willowinc:Space;1/servedBy",
+    "dtmi:com:willowinc:Calendar;1/servedBy",
+    "dtmi:com:willowinc:Collection;1/servedBy",
+    "dtmi:com:willowinc:EventCollection;1/servedBy"
+  ],
+  "environment": "Authorized preview test workspace; tenant and resource identifiers omitted",
+  "original_ontology_unchanged": true,
+  "new_test_resources_retained": true
+}

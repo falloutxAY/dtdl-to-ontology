@@ -1,6 +1,7 @@
 """Stable documentation categories shared by diagnostics and the gap catalog."""
 
 GAP_CODES = {
+    "naming": {"NAME_CONFLICT", "NAME_CONFIG"},
     "inheritance": {"INHERITANCE", "NATIVE_MULTIPLE_INHERITANCE", "POLYMORPHISM"},
     "components": {"COMPONENT", "COMPONENT_CYCLE", "COMPONENT_RELATIONSHIP", "UNBOUND_STRUCT"},
     "collections-and-enums": {"COLLECTION", "ENUM_UNDERLYING", "GEOSPATIAL_MAPPING"},

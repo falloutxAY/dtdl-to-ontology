@@ -34,9 +34,12 @@ def parse_tmdl(parts: dict[str, str]) -> dict:
             continue
         current_record = None
         current_entity = None
+        records: list[tuple[int, dict]] = []
         pending_docs = []
         for line_number, line in enumerate(text.splitlines(), start=1):
             stripped = line.strip()
+            expanded = line.expandtabs(4)
+            indent = len(expanded) - len(expanded.lstrip())
             if stripped.startswith("///"):
                 pending_docs.append(stripped[3:].removeprefix(" ").rstrip())
                 continue
@@ -49,6 +52,7 @@ def parse_tmdl(parts: dict[str, str]) -> dict:
                 if kind == "namespace":
                     record = {"name": name}
                     _insert_unique(result["namespaces"], name, record, path, line_number)
+                    current_entity = None
                 elif kind == "entity":
                     namespace, separator, _ = name.partition("#")
                     record = {
@@ -74,9 +78,15 @@ def parse_tmdl(parts: dict[str, str]) -> dict:
                         record["description"] = description
                     _insert_unique(current_entity["properties"], name, record, path, line_number)
                 current_record = record
+                while records and records[-1][0] >= indent:
+                    records.pop()
+                records.append((indent, record))
                 continue
             if not stripped or stripped.startswith("//"):
                 continue
+            while records and records[-1][0] >= indent:
+                records.pop()
+            current_record = records[-1][1] if records else None
             if current_record is None:
                 continue
             if stripped.startswith("lineageTag:"):
@@ -89,6 +99,8 @@ def parse_tmdl(parts: dict[str, str]) -> dict:
                 current_record["fromEntity"] = _identifier(stripped.partition(":")[2].strip())
             elif stripped.startswith("toEntity:"):
                 current_record["toEntity"] = _identifier(stripped.partition(":")[2].strip())
+            elif stripped.startswith("label:"):
+                current_record["label"] = stripped.partition(":")[2].strip()
             elif stripped.startswith("complexDataType ="):
                 value = stripped.partition("=")[2].strip()
                 try:
@@ -102,11 +114,7 @@ def parse_tmdl(parts: dict[str, str]) -> dict:
                 key, value = _assignment(assignment, "=")
                 if key in current_record.get("annotations", {}):
                     raise ValueError(f"Duplicate annotation {key!r} in {path}:{line_number}.")
-                try:
-                    parsed_value = json.loads(value)
-                except json.JSONDecodeError as error:
-                    raise ValueError(f"Malformed annotation in {path}:{line_number}.") from error
-                current_record.setdefault("annotations", {})[key] = parsed_value
+                current_record.setdefault("annotations", {})[key] = value
             else:
                 raise ValueError(
                     f"Unsupported TMDL construct in {path}:{line_number}: {stripped!r}."

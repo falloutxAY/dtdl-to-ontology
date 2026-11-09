@@ -20,8 +20,9 @@ def build_manifest(plan: Plan) -> dict:
             "selected": identifier in plan.selection.selected,
         }
     targets = {}
+    overrides = plan.options.name_overrides
     for identity, entity in sorted(plan.entities.items()):
-        name = target_name(identity)
+        name = target_name(identity, overrides=overrides)
         targets[identity] = {
             "kind": "entity",
             "name": name.qualified,
@@ -30,14 +31,16 @@ def build_manifest(plan: Plan) -> dict:
             "role": entity.role,
             "placeholder": entity.placeholder,
             "base": entity.base,
+            "annotations": entity.annotations,
             "properties": [
                 {
                     "name": prop.name,
-                    "target_name": property_name(identity, prop.name),
+                    "target_name": property_name(identity, prop.name, overrides),
                     "lineageTag": lineage(identity + "/" + prop.name, "property"),
                     "source_owner": prop.owner,
                     "source": asdict(prop.source),
                     "logical_type": prop.logical_type,
+                    "annotations": prop.annotations,
                     **(
                         {"pre_fallback_logical_type": prop.pre_fallback_logical_type}
                         if prop.pre_fallback_logical_type is not None
@@ -50,16 +53,20 @@ def build_manifest(plan: Plan) -> dict:
         }
     relationships = {}
     for relation in sorted(plan.relationships, key=lambda relation: relation.identity):
-        name = target_name(relation.identity, "relationship")
+        name = target_name(relation.identity, "relationship", overrides)
         relationships[relation.identity] = {
             "name": name.qualified,
             "lineageTag": name.lineage_tag,
             "from": relation.from_entity,
             "to": relation.to_entity,
             "source": asdict(relation.source),
+            "label": relation.label,
+            "annotations": relation.annotations,
         }
     return {
         "schema_version": 1,
+        "naming_strategy": "readable-v1",
+        "name_overrides": overrides,
         "source_revision_as_supplied": plan.options.source_revision,
         "source_files_sha256": dict(sorted(collection.fingerprints.items())),
         "selection": plan.selection.inventory(),

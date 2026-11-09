@@ -12,6 +12,7 @@ EXAMPLES = Path(__file__).parents[1] / "examples"
     [
         ("scalars.json", []),
         ("relationships.json", []),
+        ("name-conflict.json", ["--config", EXAMPLES / "names.json"]),
         ("multiple-inheritance.json", ["--compatibility", "--policy", "flatten-inheritance"]),
         (
             "edge-properties.json",

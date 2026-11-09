@@ -97,9 +97,11 @@ def test_full_pinned_policy_sweep_keeps_nonwaivable_gaps_and_limits(willow):
         "ANNOTATION_TARGET": 1,
         "OVERRIDE_FIELD": 1,
     }
-    assert [(finding.code, finding.message) for finding in checks.findings if finding.blocking] == [
-        ("LIMIT_RELATIONSHIPS", "Measured 14780; supported limit is 10000.")
-    ]
+    assert {finding.code for finding in checks.findings if finding.blocking} == {
+        "LIMIT_RELATIONSHIPS",
+        "LIMIT_DOCUMENT_NODES",
+    }
+    assert checks.measurements["document_nodes"] > plan.profile.max_document_nodes
     blocked_owners = {
         identifier
         for identifier in willow.collection.models
@@ -172,6 +174,11 @@ def test_bounded_building_projection_is_complete_explicit_and_deterministic(will
     assert {"Object", "Array", "Map", "Enum", "Component", "Area"} <= constructs
     parts = build_parts(plan, "WillowBuilding")
     assert len(parts) == 15
+    assert "namespaces/com_willowinc.tmdl" in parts
+    building = parts["entities/com_willowinc#Building.tmdl"]
+    assert "\tproperty 'height'" in building
+    assert "annotation 'dtdlModelVersion' = 1\n" in building
+    assert "annotation 'dtdlValueEncoding' = json\n" in building
     assert "entityRelationships.tmdl" not in parts
     assert not any("baseEntityType" in text for text in parts.values())
     assert not any("complexDataType" in text for text in parts.values())

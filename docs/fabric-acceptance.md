@@ -5,6 +5,30 @@ Ontology items and the public Create Item / Get Definition APIs. Existing
 items were not modified. No runtime bindings, data ingestion or graph queries
 were performed. Items and service-created companions were retained for review.
 
+The original records below used the older hashed naming strategy. Source and
+payload fingerprints describe those exact requests; they are not retroactive
+acceptance claims for the [readable-name strategy](naming.md). Compare names,
+annotations and labels explicitly when validating a newly generated definition.
+
+## Readable-name Willow verification
+
+A separately authorized Building projection using converter 0.2.0 passed
+creation/retrieval with **15 types, 128 properties and 30 relationships**.
+The service preserved `com_willowinc#Settings`, ordinary property names,
+`dtdlModelId`/`dtdlModelVersion` annotations, JSON-encoding/unit provenance, and
+relationship labels such as `ownedBy`. All supported fields matched after the
+corrections recorded in the [sanitized evidence](evidence/2026-11-09-readable-names.json).
+The UI showed readable entity names and the expected type/relationship counts.
+
+This exposed implementation issues now covered by regressions: the service
+reorders entity annotations after properties, so comparison must honor
+indentation; label strings must not use identifier-style single quotes, which
+the UI displayed literally. Annotation values likewise require plain text,
+not JSON-string quoting. Separately approved label-only and metadata-only
+updates corrected the new test item. The original hashed-name Ontology was not changed.
+No data bindings, actual twin rows, runtime queries or in-place legacy rename
+were tested. The same explicit projections and five `servedBy` omissions remain.
+
 ## Verified definition shapes
 
 The following **actual converter outputs** completed creation (`202` ->
