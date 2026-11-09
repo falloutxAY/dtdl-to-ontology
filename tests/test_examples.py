@@ -10,6 +10,13 @@ EXAMPLES = Path(__file__).parents[1] / "examples"
 @pytest.mark.parametrize(
     "filename,extra",
     [
+        ("scalars.json", []),
+        ("relationships.json", []),
+        ("multiple-inheritance.json", ["--compatibility", "--policy", "flatten-inheritance"]),
+        (
+            "edge-properties.json",
+            ["--compatibility", "--policy", "reify-relationship-properties"],
+        ),
         ("minimal.json", ["--compatibility", "--policy", "json-objects"]),
         (
             "projection.json",

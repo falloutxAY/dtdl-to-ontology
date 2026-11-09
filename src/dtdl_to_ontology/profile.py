@@ -41,4 +41,11 @@ class TargetProfile:
         }
 
 
-DEFAULT_PROFILE = TargetProfile()
+DEFAULT_PROFILE = TargetProfile(
+    id="fabric-new-2026-11-09",
+    unbound_relationships=True,
+    relationship_evidence=(
+        "https://github.com/falloutxAY/dtdl-to-ontology/blob/main/"
+        "docs/fabric-acceptance.md#verified-definition-shapes"
+    ),
+)

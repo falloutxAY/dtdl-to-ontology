@@ -1,0 +1,21 @@
+[
+  {
+    "@context": "dtmi:dtdl:context;3",
+    "@id": "dtmi:example:Asset;1",
+    "@type": "Interface",
+    "contents": [{"@type": "Property", "name": "serial", "schema": "string"}]
+  },
+  {
+    "@context": "dtmi:dtdl:context;3",
+    "@id": "dtmi:example:Located;1",
+    "@type": "Interface",
+    "contents": [{"@type": "Property", "name": "location", "schema": "string"}]
+  },
+  {
+    "@context": "dtmi:dtdl:context;3",
+    "@id": "dtmi:example:Device;1",
+    "@type": "Interface",
+    "extends": ["dtmi:example:Asset;1", "dtmi:example:Located;1"],
+    "contents": [{"@type": "Property", "name": "active", "schema": "boolean"}]
+  }
+]

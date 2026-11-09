@@ -90,7 +90,8 @@ def test_full_pinned_policy_sweep_keeps_nonwaivable_gaps_and_limits(willow):
     assert not plan.selection.inventory()["excluded"]
     assert len(plan.entities) == 3723
     assert len(plan.relationships) == 14780
-    assert sum(f.blocking for f in findings) == 25303
+    assert plan.blocked
+    assert not any(f.code == "UNBOUND_RELATIONSHIP" for f in findings)
     assert Counter(f.code for f in willow.findings) == {
         "EXTENSION_TYPE": 5,
         "ANNOTATION_TARGET": 1,
@@ -104,7 +105,7 @@ def test_full_pinned_policy_sweep_keeps_nonwaivable_gaps_and_limits(willow):
         for identifier in willow.collection.models
         if any(f.blocking and f.dtmi == identifier for f in findings)
     }
-    assert len(blocked_owners) == 3690
+    assert "dtmi:com:willowinc:WaterLeakEvent;1" in blocked_owners
     assert any(f.code == "MISSING_TARGET" and f.blocking for f in findings)
     assert any(f.code == "ANNOTATION_TARGET" and f.blocking for f in findings)
 

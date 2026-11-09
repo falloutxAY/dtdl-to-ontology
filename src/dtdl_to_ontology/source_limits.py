@@ -130,6 +130,14 @@ def validate_limits(graph: SourceGraph, collection: Collection) -> list[Finding]
                 ),
                 default=0,
             )
+            # Primitive schema references terminate the graph but still count as links.
+            if any(
+                member in weighted
+                and isinstance(value, str)
+                and not any(edge == member for edge, _ in element.edges)
+                for member, value in element.raw.items()
+            ):
+                length = max(length, 1)
             active.remove(element.identity)
             memo[element.identity] = length
             return length

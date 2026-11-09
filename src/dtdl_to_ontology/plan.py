@@ -353,7 +353,8 @@ class Planner:
             declaration,
             owner,
             "component-properties",
-            "Independent component identity and contained edge semantics are not native.",
+            "Component-scoped structure and contained edge semantics are projected; "
+            "DTDL components are by-value, not independent twins.",
         )
         self.metadata(declaration, owner)
         fields = []
@@ -436,7 +437,7 @@ class Planner:
                             model.source,
                             identifier,
                             workaround="Disable native mode; approve flatten-inheritance.",
-                            limitation="No native multiple-parent hierarchy is available.",
+                            limitation="The current public TMDL contract has one baseEntityType.",
                         )
                     )
                 else:
