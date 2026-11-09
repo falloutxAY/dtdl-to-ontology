@@ -28,6 +28,10 @@ not JSON-string quoting. Separately approved label-only and metadata-only
 updates corrected the new test item. The original hashed-name Ontology was not changed.
 No data bindings, actual twin rows, runtime queries or in-place legacy rename
 were tested. The same explicit projections and five `servedBy` omissions remain.
+The public [Building configuration](../examples/willow-building.json) now uses
+these choices; [reproduction steps](testing.md#independent-samples-and-willow)
+and local regressions check the retained graph. A new output/display name has
+different payload bytes and does not inherit the historical payload fingerprint.
 
 ## Verified definition shapes
 

@@ -55,6 +55,16 @@ Only actual Fabric parts enter `definition.json`. Complete originals and
 pre-fallback object shapes remain in the manifest, not hidden upload parts.
 Sidecars can contain sensitive source models; store them accordingly.
 
+Reports start with an action summary: blocking causes grouped by code/policy,
+affected selected models, policies needing review, and target-limit measurements.
+`report.json` adds a `summary` object; all previous fields and full `findings`
+remain. Examples show at most three models/findings per cause.
+Counts are finding occurrences, **not distinct source defects**; causes/models
+can overlap. Item/input-level failures have no selected model ID.
+Non-blocking selected findings and unselected findings are counted separately.
+Target measurements remain provisional while mapping blockers remain.
+Review losses before approving policies; a summary never applies them for you.
+
 For unchanged input bytes/paths/options, local output is deterministic.
 `locally_validated` does not mean service-accepted. Blocked conversion publishes
 diagnostics only, never a partial ready definition.

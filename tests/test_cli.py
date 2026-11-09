@@ -207,9 +207,22 @@ def test_blocked_convert_is_nonzero_with_diagnostics_only(write_models, tmp_path
     assert report["analysis_status"] == "completed_with_findings"
     assert report["emission_status"] == "blocked"
     assert not report["selected_mapping_ready"]
+    cause = next(
+        cause for cause in report["summary"]["blocking_causes"] if cause["code"] == "COLLECTION"
+    )
+    assert cause["finding_count"] == cause["affected_model_count"] == 1
+    assert "json-collections" in report["summary"]["policies_requiring_review"]
     assert (destination / "report.json").exists()
+    assert json.loads((destination / "report.json").read_text())["summary"] == report["summary"]
+    saved_report = (destination / "report.md").read_text()
+    assert saved_report.index("## Action summary") < saved_report.index("## Findings")
     assert not (destination / "definition.json").exists()
     assert not (destination / "parts").exists()
+    analysis = run_cli("analyze", source, "--compatibility")
+    assert analysis.returncode == 0
+    assert analysis.stdout.index("## Action summary") < analysis.stdout.index("## Findings")
+    assert "json-collections" in analysis.stdout
+    assert "Selected mapping ready: False" in analysis.stdout
     approved = run_cli(
         "convert",
         source,

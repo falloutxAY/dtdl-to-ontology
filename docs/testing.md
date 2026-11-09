@@ -63,16 +63,24 @@ source issues (including an absent LeaseContract and invalid annotation/unit
 declarations), more than 10,000 planned relationships, and the full logical
 document budget including emitted provenance metadata.
 
-For a deliberately bounded property projection:
+For the bounded, relationship-preserving Building projection:
 
 ```powershell
 dtdl-to-ontology convert .fixtures\willow\Ontology --root "dtmi:com:willowinc:Building;1" --compatibility --config examples\willow-building.json --name WillowBuilding --output output\willow
 ```
 
-That legacy example selects 10 types/79 properties, approves 15 object fallbacks,
-and deliberately omits 22 relationships. It is not a recommended complete
-Building migration. Ordinary relationships no longer need omission merely
-because they are unbound.
+This selects **15 types, 128 property declarations and 30 relationship
+definitions**, with 19 explicit object/component-to-String fallbacks.
+The only omissions are the targetless `servedBy` relationships on Building,
+Space, Calendar, Collection and EventCollection. No targets are guessed.
+It replaces the old property-only configuration; review the larger dependency
+closure and use a fresh output directory when upgrading.
+
+The configuration matches the policies and selection used for the
+[readable-name service test](fabric-acceptance.md#readable-name-willow-verification).
+The regression checks source fingerprints, dependency closure, every retained
+relationship, exact omissions, counts and deterministic output. This is local
+reproducibility, not a new service run or proof of instance/query equivalence.
 
 ## Independent parser oracle
 
