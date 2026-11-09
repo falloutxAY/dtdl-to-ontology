@@ -1,149 +1,147 @@
-# Known conversion gaps
+# Workarounds and boundaries
 
-The converter compiles DTDLv3 directly to Fabric Ontology new-experience TMDL.
-It is not a lossless general DTDL implementation. Strict mode blocks semantic losses;
-`--compatibility` alone approves none. Complete originals remain in `manifest.json`,
-not unsupported uploaded definition parts. Every finding links to a category below.
+**Implemented** means this CLI emits the described definition.
+**Guidance** means a separate data/runtime design, not an implemented migration
+or a service-tested recipe. No policy implies data or query equivalence.
 
 ## Source validation
 
-Loader, resolver, selection, schema-mapping and identity findings identify malformed,
-unsupported or ambiguous source constructs by DTMI, file and JSON pointer. Correct
-the source or select an independent valid projection. Compatibility policies cannot
-waive invalid definitions, conflicting declarations, recursive shapes, missing
-required schemas or unknown contexts. This bounded Python resolver is not certified
-equivalent to Microsoft's DTDLParser. See [supported subset](dtdl-support.md).
+Fix malformed or unresolved input before mapping. Findings include DTMI, file,
+JSON pointer, fidelity and a suggested action. Selecting an independent valid
+root is allowed; excluded models remain visible in reports. Never repair a
+vendor model silently. [Source coverage](dtdl-support.md).
+
+## Naming
+
+`NAME_CONFLICT` blocks case-insensitive collisions after readable-name mapping.
+`NAME_CONFIG` identifies stale aliases, reserved names or names that cannot be
+published as portable part paths. Supply exact reviewed aliases through
+`--config`, or use `--interactive-names` in a terminal. Hashes, model-version
+suffixes and truncation are never added automatically.
+[Naming and upgrade guidance](naming.md).
 
 ## Inheritance
 
-`INHERITANCE`: approve `flatten-inheritance` to materialize compatible effective
-properties, retaining every source parent in the manifest. Multiple parents have
-**no native multiple-parent equivalent**; a parent is never guessed.
-Native single-parent output requires an affirmative `inheritance: true` target
-declaration. That declaration is not proof of tenant rollout or service acceptance.
-Ordinary relationships are explicitly expanded per consumer, not inherited by
-Fabric; their count can exceed capacity. Deep native polymorphic queries are not
-equivalent: documented expansion covers base plus direct children, not all ancestors.
-Use the recorded ancestor graph for explicit downstream queries.
+**Implemented:** `flatten-inheritance` copies effective properties from every
+compatible parent; the manifest retains ancestry. Diamond inheritance
+deduplicates the original declaration; conflicting declarations block.
+Native single-parent output uses `--config examples\native.json` instead.
+Both paths have [definition-level service evidence](fabric-acceptance.md).
+
+Flattening loses native ancestry and polymorphic behavior. **Guidance:** retain
+a type-ancestry table in a Lakehouse and join it explicitly when evaluating
+subtype queries. Validate transitive membership and duplicate handling; do not
+assume an Ontology query is equivalent to DTDL or ADT polymorphism.
 
 ## Components
 
-**Live service finding (2026-10-20):** unbound struct projection is rejected in the
-tested environment. The Building example's 15 complex properties produced
-`ComplexLogicalBackingMismatch`: every struct node requires an exact recursive
-`backingConfiguration`. This affects fixed Objects as well as projected Components.
-`UNBOUND_STRUCT` now blocks publication unless `json-objects` explicitly approves
-mapping the whole property to String. The manifest retains original schemas and
-`pre_fallback_logical_type`; nested source, metadata, runtime and relationship
-checks still run before this fallback. `json-collections` and `component-properties`
-do not authorize that additional loss. The corrected bounded Building projection
-passed a live round trip with 15 such string projections.
+DTDL Components are **by-value**, not independent twins.
+**Implemented:** `component-properties` projects component state, and
+`json-objects` publishes that struct as String. Contained relationships need
+exact path-specific omissions; they must not become owner relationships.
 
-JSON strings lose native field typing/querying and do not enforce object shape.
-The converter emits type definitions only: downstream ingestion must serialize
-valid JSON values, and no instance-value ingestion was tested. Faithful native
-structs need real field/column backings, outside this version's scope; fabricated
-tables or columns are not a workaround.
-
-`COMPONENT`: approve `component-properties` to analyze a component as a recursive
-fixed-struct property; unbound publication also requires `json-objects`.
-This loses independent component identity. Component-contained ordinary
-relationships require exact path-specific omission or block; they cannot silently
-become owner relationships. Nested components retain paths in source/target provenance.
-Empty or recursive component shapes block; there is no complete native component
-equivalent. Separate child entities and bindings are future designs, not fallbacks
-implemented by this policy.
-The source-language prohibition on Component-inside-Component is now diagnosed
-as `DTDL_NESTED_COMPONENT` before any projection; compatibility cannot waive it.
+**Guidance:** preserve component paths in Lakehouse columns or child rows
+keyed by `(ownerInstanceId, componentPath)`. Do not invent independent twin IDs.
+Typed native structs need actual recursive field backings; the converter does
+not generate them. `UNBOUND_STRUCT` is a service-confirmed restriction for the
+tested unbound shape, not a claim that backed structs are unsupported.
 
 ## Collections and enums
 
-`COLLECTION`: approve `json-collections` to store Array/Map values as JSON strings.
-There are no invented array/map complex kinds, typed element queries or automatic
-runtime serialization. A future ingestion layer must supply valid JSON values.
-`ENUM_UNDERLYING`: approve `enum-underlying` to use the underlying string/int64
-primitive. Allowed values and labels remain in the manifest; external validation
-must enforce them. Normalized child collections are not implemented.
+**Implemented:** `json-collections` and `json-objects` emit String definitions;
+`enum-underlying` emits the enum's primitive. These do not serialize actual
+values. Downstream ingestion must preserve valid JSON, enum values and source
+schema constraints.
 
-`GEOSPATIAL_MAPPING`: all six standard geometries are recognized source schemas,
-not missing user dependencies. Their identity and full source coordinate-array
-structure are retained in the manifest. Native geometry types, variable-length
-coordinate arrays and spatial querying are not provided. No new fallback was added.
+**Guidance:** use a Fabric Notebook or Dataflow to normalize collections into
+Lakehouse child tables. Preserve `(ownerId, propertyPath, arrayIndex)` for arrays
+or `(ownerId, propertyPath, mapKey)` for maps; distinguish missing, null and empty
+values. Validate enums before loading. Native typed-array querying is not
+recreated just because JSON is retained.
+
+`GEOSPATIAL_MAPPING`: standard DTDL geometry has no converter-native mapping.
+Keep the original coordinates and CRS assumptions in the data layer; evaluate
+a spatial-capable engine separately. No Fabric spatial-parity test is claimed.
 
 ## Temporal primitives
 
-`TEMPORAL_STRING`: approve `temporal-strings` for date/time/duration ISO strings.
-Native temporal operations and constraints are not equivalent. dateTime maps
-directly to dateTime; no timezone or instance-value conversion is performed.
+**Implemented:** `temporal-strings` preserves date/time/duration as String.
+`dateTime` has a direct definition mapping. **Guidance:** validate and transform
+instance values in ingestion; keep original strings if lexical fidelity matters.
+A time-of-day, duration, and timestamp are not interchangeable.
 
 ## Metadata and constraints
 
-`METADATA_SEMANTICS`, `SOURCE_WIDTH`, `WRITABLE`: approve `metadata-semantics`
-to retain unsupported semantics as manifest data, not execution.
-Units and quantitative vocabulary do not establish dimensional conversion or
-reasoning. ValueAnnotation/Override preserve instance links, including per-instance
-effective unit overrides; Fabric inheritance `redefines`/metadata overrides do
-**not** execute these links. A runtime processor must interpret instance values.
-Integer/long and float/double source distinctions are retained but do not preserve
-all widths. Writable state requires external synchronization.
-Multiplicity and other source constraints require upstream validation; table
-cardinality and natural-language rules are not equivalent enforcement.
-Localized labels and versioned DTMIs remain complete in the manifest; target
-technical names are deterministic and display names are server-derived.
-No silent annotation truncation is used.
+**Implemented:** `metadata-semantics` keeps units, writable intent, numeric
+widths, labels and constraints in the manifest. Small source-identity,
+version, schema/unit and JSON-encoding annotations also accompany the definition.
+Metadata does not enforce these semantics.
+`FIELD_PRESENCE` remains blocking for Required fields.
 
-`FIELD_PRESENCE`: Requirement v1 distinguishes optional-by-default Fields from
-explicit Required Fields. Source schema typing does not enforce field presence.
-Required declarations remain blocked even with existing loss policies; the
-manifest explicitly records that target enforcement is absent.
+**Guidance:** implement range/enum/presence validation and unit conversion in a
+Notebook/Dataflow before writing curated tables. Keep rejected rows with reasons.
+Resolve per-instance unit overrides before aggregation. Do not equate Fabric
+inheritance metadata with DTDL instance-level `ValueAnnotation`/`Override`.
 
 ## Relationships
 
-`UNBOUND_RELATIONSHIP`: unbound relationship acceptance is **unverified and gated**.
-There is no public switch to waive this. Supply authoritative acceptance evidence
-in a future supported profile or explicitly omit each edge using
-`omit-relationships` and `omit_relationships` selectors.
-`UNTARGETED_RELATIONSHIP`: configure a concrete target or omit it; no unrestricted
-native `toEntity` exists.
-`MISSING_TARGET`: provide the definition, map a target, omit the edge, or explicitly
-approve a visibly marked placeholder with `placeholder-targets`.
-A placeholder cannot reconstruct missing source meaning.
-`TARGET_MAPPING`, `PLACEHOLDER_TARGET`, `RELATIONSHIP_OMITTED` record these losses.
-`RELATIONSHIP_PROPERTIES`: `reify-relationship-properties` plans edge entities with
-typed properties, an unbound edge-ID property and source/target endpoint links.
-It is not native attributed-edge identity and **does not override the unbound-link
-gate**. Runtime edge IDs and endpoint bindings must be supplied later.
-`EDGE_ID_COLLISION` blocks a source collision with the generated edge-ID property.
-Junction tables alone do not expose native per-edge property collections.
+**Implemented:** concrete-target unbound definitions are service-verified.
+They still contain no edge rows. Target mapping, `placeholder-targets`, and
+`omit-relationships` require explicit choices; omissions use exact
+`DTMI/relationship` or `DTMI/component/path/relationship` selectors.
+
+`reify-relationship-properties` preserves edge attributes as properties on a
+generated edge entity, with source and target links:
+
+```mermaid
+flowchart LR
+    E["Edge entity: ID + attributes"] -->|source| S["Source instance"]
+    E -->|target| T["Target instance"]
+```
+
+This is **not** native attributed-edge traversal. **Guidance:** load a Lakehouse
+edge table keyed by source system and original edge ID, retaining endpoint IDs
+and parallel edges. Bind its rows and both endpoints explicitly, then rewrite
+queries for the extra hop. Definition acceptance does not verify those bindings.
 
 ## Runtime and bindings
 
-`COMMAND_RUNTIME`: **no definition-payload-only solution** executes device commands.
-External device integration is required; metadata preservation is not execution.
-`TELEMETRY_BINDING`: a telemetry property can be retained, but **no payload-only
-solution** provides ingestion, stream correlation or time-series bindings.
-No fake timeSeries/backing table/source expression is emitted.
-Real tables, columns and runtime keys cannot be inferred from schemas. Neither a
-model DTMI nor a property called uniqueID proves an instance key. Data bindings
-and deployment are outside this version. Willow has no Telemetry/Command
-declarations, so synthetic CLI fixtures cover these diagnostics.
+The following are **guidance, not implemented or end-to-end tested here**:
 
-`HISTORIZATION_BINDING` and `MQTT_RUNTIME` preserve recognized source intent but
-remain non-waivable runtime/target gaps. Historized does not create change capture
-or historical queries. MQTT declarations do not create transport, command
-dispatch, topic expansion or a wire-format serializer. No new table, key, ordering
-column or backing is fabricated to make these definitions appear supported.
+| Need | Candidate Fabric items | What remains to build/test |
+| --- | --- | --- |
+| Current instance state | Lakehouse + Notebook/Dataflow | Stable keys, upserts/deletes, null/missing semantics, property bindings |
+| Telemetry/history | Eventstream + Eventhouse/KQL database | Supported connector, timestamps, deduplication, ordering, retention, time-series bindings |
+| Collection/edge remodeling | Lakehouse + Notebook | Original identities, reversible transformation, constraints, query rewrites |
+| Scheduled backfill | Data Factory pipeline | Checkpoints, retries, source consistency and reconciliation |
+| Analytics/alerts | Power BI, Real-Time Dashboard, Activator | Scenario-specific measures, refresh/freshness and alert semantics |
+
+```mermaid
+flowchart LR
+    M["DTDL v3 models"] --> C["Converter"]
+    C --> O["Ontology definitions"]
+    D["Instance data / events"] --> I["Separately built ingestion"]
+    I --> L["Lakehouse or Eventhouse"]
+    L --> B["Explicit keys and bindings"]
+    B --> O
+```
+
+Commands, MQTT device transport and desired/reported state synchronization need
+external integrations such as IoT Hub and application services. Ontology is not
+a device-command runtime, ADT-compatible CRUD API, or automatic query translator.
+`COMMAND_RUNTIME`, `MQTT_RUNTIME` and `HISTORIZATION_BINDING` remain blocking.
+
+[Binding support][binding] does **not** imply [Graph eligibility][graph]:
+current Graph guidance requires keys and bindings, supports Lakehouse/mirrored
+Delta sources, excludes multiple backing tables, and requires refresh after
+source-data changes. An unbound ontology cannot be queried as a populated graph.
 
 ## Capacity
 
-`LIMIT_*` findings stop publication instead of truncating output.
-Use smaller explicit roots, omissions or a different explicitly designed projection.
-Batching REST parts does not bypass per-item limits. Automatic partitioning and
-generic-twin projections are not implemented. Whole-source Willow expansion is not
-a lossless single-item conversion. See [target profile](support-matrix.md).
-Local structural checks do not establish unknown transport/tenant limits or service
-acceptance; a separate authorized Fabric create/getDefinition check is necessary.
-`ONTOLOGY_NAME` rejects item display names that the live service rejects: names
-must begin with an ASCII letter, contain only ASCII letters/digits/underscores,
-and have at most 89 characters. This item-name contract is separate from the
-512-character bound on ordinary model names.
+`LIMIT_*` blocks publication; output is never truncated. Select smaller explicit
+roots and review dependencies. Multiple REST requests cannot bypass per-item
+limits. Whole-Willow conversion still exceeds the relationship limit even with
+all policies enabled. [Limits and recovery](output-and-limits.md).
+
+[binding]: https://learn.microsoft.com/fabric/iq/ontology/how-to-bind-data
+[graph]: https://learn.microsoft.com/fabric/iq/ontology/how-to-use-ontology-graph

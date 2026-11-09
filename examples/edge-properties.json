@@ -1,0 +1,15 @@
+[
+  {
+    "@context": "dtmi:dtdl:context;3",
+    "@id": "dtmi:example:Machine;1",
+    "@type": "Interface",
+    "contents": [
+      {
+        "@type": "Relationship",
+        "name": "feeds",
+        "target": "dtmi:example:Machine;1",
+        "properties": [{"@type": "Property", "name": "flow", "schema": "double"}]
+      }
+    ]
+  }
+]

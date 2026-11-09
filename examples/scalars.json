@@ -1,0 +1,12 @@
+{
+  "@context": "dtmi:dtdl:context;3",
+  "@id": "dtmi:example:Sensor;1",
+  "@type": "Interface",
+  "contents": [
+    {"@type": "Property", "name": "label", "schema": "string"},
+    {"@type": "Property", "name": "active", "schema": "boolean"},
+    {"@type": "Property", "name": "count", "schema": "long"},
+    {"@type": "Property", "name": "reading", "schema": "double"},
+    {"@type": "Property", "name": "observed", "schema": "dateTime"}
+  ]
+}

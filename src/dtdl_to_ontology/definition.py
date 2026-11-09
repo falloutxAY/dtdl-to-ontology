@@ -4,10 +4,10 @@ import base64
 import uuid
 from pathlib import Path, PurePosixPath
 
-from .naming import lineage, quote, target_name
+from .naming import lineage, namespace_source, naming_findings, quote, target_name
 from .plan import Plan
 from .report import canonical_json
-from .tmdl import render_entity, render_relationships
+from .tmdl import render_annotations, render_entity, render_relationships
 
 
 def platform_details(name: str, logical_id: str | None = None) -> dict:
@@ -25,25 +25,34 @@ def platform_details(name: str, logical_id: str | None = None) -> dict:
 def build_parts(plan: Plan, name: str, logical_id: str | None = None) -> dict[str, str]:
     if plan.blocked:
         raise ValueError("Cannot emit a definition with blocking findings.")
+    if naming_findings(plan):
+        raise ValueError("Cannot emit a definition with unresolved naming conflicts or aliases.")
+    overrides = plan.options.name_overrides
     parts = {
         ".platform": canonical_json(platform_details(name, logical_id)),
         "database.tmdl": "database\n\tcompatibilityLevel: 1000000\n",
         "namespaces/default.tmdl": "namespace default\n\tlineageTag: default\n",
     }
-    namespaces = {target_name(identity).namespace for identity in plan.entities}
+    namespaces = {
+        target_name(identity, overrides=overrides).namespace: namespace_source(identity)
+        for identity in sorted(plan.entities)
+        if target_name(identity, overrides=overrides).namespace
+    }
     model_lines = ["model Model", "", "ref namespace default"]
-    for namespace in sorted(namespaces):
+    for namespace, original in sorted(namespaces.items()):
         parts[f"namespaces/{namespace}.tmdl"] = (
-            f"namespace {quote(namespace)}\n\tlineageTag: {lineage(namespace, 'namespace')}\n"
+            f"namespace {quote(namespace)}\n\tlineageTag: {lineage(original, 'namespace')}\n"
+            + "\n".join(render_annotations({"dtdlNamespace": original}, "\t"))
+            + "\n"
         )
         model_lines.append(f"ref namespace {quote(namespace)}")
     seen = set()
     for identity, entity in sorted(plan.entities.items()):
-        target = target_name(identity).qualified
+        target = target_name(identity, overrides=overrides).qualified
         if target.casefold() in seen:
             raise ValueError(f"Case-insensitive target identity collision: {identity}")
         seen.add(target.casefold())
-        parts[f"entities/{target}.tmdl"] = render_entity(entity)
+        parts[f"entities/{target}.tmdl"] = render_entity(entity, overrides)
         model_lines.append(f"ref entity {quote(target)}")
     relationships = render_relationships(plan)
     if relationships:

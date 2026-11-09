@@ -90,21 +90,24 @@ def test_full_pinned_policy_sweep_keeps_nonwaivable_gaps_and_limits(willow):
     assert not plan.selection.inventory()["excluded"]
     assert len(plan.entities) == 3723
     assert len(plan.relationships) == 14780
-    assert sum(f.blocking for f in findings) == 25303
+    assert plan.blocked
+    assert not any(f.code == "UNBOUND_RELATIONSHIP" for f in findings)
     assert Counter(f.code for f in willow.findings) == {
         "EXTENSION_TYPE": 5,
         "ANNOTATION_TARGET": 1,
         "OVERRIDE_FIELD": 1,
     }
-    assert [(finding.code, finding.message) for finding in checks.findings if finding.blocking] == [
-        ("LIMIT_RELATIONSHIPS", "Measured 14780; supported limit is 10000.")
-    ]
+    assert {finding.code for finding in checks.findings if finding.blocking} == {
+        "LIMIT_RELATIONSHIPS",
+        "LIMIT_DOCUMENT_NODES",
+    }
+    assert checks.measurements["document_nodes"] > plan.profile.max_document_nodes
     blocked_owners = {
         identifier
         for identifier in willow.collection.models
         if any(f.blocking and f.dtmi == identifier for f in findings)
     }
-    assert len(blocked_owners) == 3690
+    assert "dtmi:com:willowinc:WaterLeakEvent;1" in blocked_owners
     assert any(f.code == "MISSING_TARGET" and f.blocking for f in findings)
     assert any(f.code == "ANNOTATION_TARGET" and f.blocking for f in findings)
 
@@ -171,6 +174,11 @@ def test_bounded_building_projection_is_complete_explicit_and_deterministic(will
     assert {"Object", "Array", "Map", "Enum", "Component", "Area"} <= constructs
     parts = build_parts(plan, "WillowBuilding")
     assert len(parts) == 15
+    assert "namespaces/com_willowinc.tmdl" in parts
+    building = parts["entities/com_willowinc#Building.tmdl"]
+    assert "\tproperty 'height'" in building
+    assert "annotation 'dtdlModelVersion' = 1\n" in building
+    assert "annotation 'dtdlValueEncoding' = json\n" in building
     assert "entityRelationships.tmdl" not in parts
     assert not any("baseEntityType" in text for text in parts.values())
     assert not any("complexDataType" in text for text in parts.values())

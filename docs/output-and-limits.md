@@ -1,131 +1,111 @@
-# Results, failures and capacity
+# CLI reference
 
-## Output contract
-
-A successful `convert` publishes one directory containing `definition.json`,
-`manifest.json`, `report.json`, `report.md` and readable `parts\` files.
-Only genuine Fabric parts enter the InlineBase64 envelope. Source originals,
-fingerprints, supplied revision, all localized metadata, origins, selection reasons,
-exclusions and transformations remain in the manifest. Source revisions are
-recorded as supplied, not authenticated. JSON and part ordering is deterministic
-for unchanged source bytes, paths and options; no timestamps/random IDs are added.
-Changing source files or array positions legitimately changes fingerprints or
-JSON-pointer provenance. Merely changing enumeration order does not.
-
-The manifest also retains normalized definitions, normalization records, effective
-element identities/partitions, active contexts and extension source contracts.
-`target_enforcement: false` is explicit for retained extension semantics; preserving
-intent is not implementing it. Standard geometries retain source shapes rather
-than invented target datatypes.
-
-The report separates analysis, selected mapping readiness, emission and service
-acceptance. Counts are provisional when mappings are blocked, since a complete
-target may not exist yet. `locally_validated` **never means imported or verified
-by Fabric**. Runtime data bindings are not generated.
-
-The opt-in `deploy DEFINITION --workspace-id UUID` command reads the generated
-`definition.json`, creates a new Ontology, follows Fabric long-running operations,
-and retrieves the resulting item definition. It requires a pre-acquired bearer
-token in `FABRIC_ACCESS_TOKEN` (or the environment variable named by `--token-env`).
-The token is used in memory only and is never written to output or printed.
-Deployment creates a new item in the workspace root unless a UUID `--folder-id`
-is supplied; it never overwrites or deletes an existing item. The command checks
-that service definition parts decode as UTF-8 and reports path/text differences
-plus a normalized comparison of the supported emitted TMDL fields. If a sibling
-`manifest.json` is present, it also summarizes approved mapping losses and source
-examples. This bounded comparison does **not** assert full semantic equivalence;
-unrecognized TMDL semantics, instance ingestion and runtime behavior are not verified.
-A successful REST round trip is separate from the local
-conversion report and must not change its `service_acceptance` field.
-
-Fixed objects and projected components require explicit `json-objects` approval
-to publish as unbound String properties. Each transformed property's manifest entry
-retains `pre_fallback_logical_type` in addition to original source and emitted type.
-This sidecar shape is not an uploaded native struct or a runtime JSON value.
-
-Exit codes:
-
-| Code | Meaning |
+| Command | Behavior |
 | --- | --- |
-| 0 | Analysis completed without loader errors, or conversion published locally validated output. Analysis may still report mapping blockers. |
-| 1 | Conversion blocked, or source loading had errors. Inspect findings and `source_loading_complete`. |
-| 2 | Invalid arguments/configuration, missing token, nonempty destination, filesystem/publication failure, or console status-delivery failure. Inspect stderr; `--json` provides a failure object when publication has not occurred. |
-| 3 | Fabric rejected a deployment request, an operation failed, or the service definition could not be retrieved. A created item may remain if retrieval failed; inspect the reported item ID and workspace before retrying. |
+| `analyze INPUT` | Offline inventory and compatibility findings; no files or service mutations |
+| `convert INPUT --name NAME --output DIR` | Offline validated definition, manifest and reports |
+| `deploy DEFINITION --workspace-id UUID` | Create a new Ontology and retrieve its definition; credentials required |
 
-## Failure recovery
+`INPUT` is a local JSON file or directory. Use `--root DTMI` repeatedly to select
+roots; their required dependencies are included. No root means all Interfaces.
+Use `--json` for machine-readable console output and `--help` for every option.
+`--interactive-names` asks for explicit aliases only when conflicts occur in a
+terminal; it cannot be combined with `--json`. Otherwise conflicts block output
+with actionable diagnostics. [Names and annotations](naming.md).
+`--source-revision` records your supplied revision; it does not authenticate it.
 
-Strict conversion of `examples\projection.json` returns 1 and publishes
-diagnostics/manifest only: its inheritance/collections/etc. need named approval.
-For example:
+## Approving transformations
+
+Strict mode is the default. `--compatibility` enables named approvals, not
+automatic loss acceptance:
 
 ```powershell
-.\.venv\Scripts\dtdl-to-ontology.exe convert examples\projection.json --name Blocked --output output\blocked
+dtdl-to-ontology convert examples\minimal.json --name Objects --output output\objects --compatibility --policy json-objects
 ```
 
-No failed conversion publishes `definition.json` or `parts\`. Configuration or I/O
-errors can prevent even diagnostic files from being written; console diagnostics
-then explain the failure. Reports and parts are first written to a unique sibling
-staging directory, which is renamed into place only after all writes succeed.
-If console output fails **after** publication, exit 2 and stderr explicitly state
-that the result was saved; the valid published directory is retained, not falsely
-reported as unpublished or rolled back.
-Interrupted processes can leave a clearly named `.NAME.staging-*` directory; it
-is not a published result and can be inspected/removed manually.
+For element-specific decisions, pass `--config mapping.json`:
 
-Nonempty destinations are rejected before analysis or writes. A failed retry does
-not overwrite the earlier result; choose a new/empty directory. Never interpret an
-unchanged previous `definition.json` as output of the failed retry. The CLI tests
-exercise semantic blockers, nonempty destinations and injected disk-write failures.
+```json
+{
+  "policies": ["omit-relationships"],
+  "omit_relationships": ["dtmi:example:Building;1/contains"]
+}
+```
 
-## Versioned local limits
+Other supported fields are `target_mappings` (selector -> target DTMI),
+`placeholders` (DTMI array, requiring `placeholder-targets`), and `inheritance`
+(boolean tenant capability declaration). `names` contains explicit readable-name
+aliases and does not require compatibility mode. Target mapping itself requires
+`--compatibility`; a placeholder does not supply the missing definition.
+Selectors are exact, never wildcards. Native inheritance and
+`flatten-inheritance` cannot be combined. See [policy effects](known-gaps.md).
 
-Profile `fabric-new-2026-10-20` derives from the
-[new-experience definition contract](https://learn.microsoft.com/en-us/rest/api/fabric/articles/item-management/definitions/ontology-definition).
-Checks run before publication, never truncate, and have exact/one-over regression
-cases:
+## Output and recovery
+
+Successful conversion publishes:
+
+| Artifact | Purpose |
+| --- | --- |
+| `definition.json`, `parts/` | Fabric InlineBase64 envelope and equivalent readable UTF-8 parts |
+| `manifest.json` | Original/normalized source, fingerprints, identities, selection, origins and losses |
+| `report.json`, `report.md` | Findings, readiness, emission and verification status |
+| `naming.json` (when aliases exist) | Reusable explicit naming decisions for `--config` |
+
+Only actual Fabric parts enter `definition.json`. Complete originals and
+pre-fallback object shapes remain in the manifest, not hidden upload parts.
+Sidecars can contain sensitive source models; store them accordingly.
+
+For unchanged input bytes/paths/options, local output is deterministic.
+`locally_validated` does not mean service-accepted. Blocked conversion publishes
+diagnostics only, never a partial ready definition.
+
+Publication uses a sibling staging directory and refuses nonempty destinations.
+Interrupted `.NAME.staging-*` directories are not completed results. Do not
+reuse old `definition.json` after a failed run. Console failure after publication
+reports that files were saved rather than rolling them back.
+
+| Exit | Meaning |
+| --- | --- |
+| 0 | Analyze completed without loader errors (mapping blockers can remain), or convert published, or deploy completed create/retrieval |
+| 1 | Source loading error or blocked conversion |
+| 2 | Arguments/configuration, missing token, output/I/O or console delivery failure |
+| 3 | Fabric request/operation/retrieval failure; created or companion items may remain |
+
+Deployment reads `FABRIC_ACCESS_TOKEN` by default (`--token-env` changes the
+variable name). Tokens are neither printed nor saved. `--folder-id` takes a
+UUID; without it, creation is at workspace root. No automatic deletion occurs.
+Inspect an uncertain create before retrying.
+
+The deployment report compares part paths/text and supported normalized TMDL
+fields. Differences or unsupported comparator syntax need review even when
+create/retrieval succeeds. `semantic_equivalence` remains `not_asserted`.
+[Acceptance procedure](fabric-acceptance.md).
+
+## Target limits
+
+Profile `fabric-new-2026-11-09`, based on the [public contract][contract]:
 
 | Bound | Limit |
-| --- | ---: |
-| Entity types / entity relationships per item | 10,000 each |
-| Effective properties per entity, including native ancestors | 1,000 |
-| Annotations per object | 100 |
-| Emitted descriptions / annotation values | 4,000 characters |
-| Ordinary names | 512 characters |
-| Ontology item display name | 89 ASCII letters/digits/underscores; first character a letter |
-| Complex logical-node depth / nodes per property | 32 / 4,096 |
-| Fields in any individual struct | 1,024 |
-| Normalized logical document nodes / depth | 1,000,000 / 160 |
+| --- | --- |
+| Entities / relationships | 10,000 each per item |
+| Effective properties / annotations | 1,000 per entity / 100 per object |
+| Description or annotation text / ordinary names | 4,000 / 512 characters |
+| Ontology item name | 89 ASCII letters/digits/underscores; starts with a letter |
+| Complex depth / nodes / struct fields | 32 / 4,096 / 1,024 |
+| Logical document nodes / depth | 1,000,000 / 160 |
 
-Entity/relationship counts measure planned declarations, including expanded
-inherited edges and generated edge roles, **not** `parts[]` length. Complex-node
-counting counts each primitive/struct/any/timeSeries occurrence; root depth is 1.
-Reused shape objects count each expanded occurrence, not unique Python identities.
-An approved JSON-object fallback is measured as its emitted primitive String,
-not its retained pre-fallback struct; that original shape remains sidecar-only.
-Source resolution/traversal bounds and non-waivable source/mapping checks still
-apply before fallback.
+Counts include generated edge entities/links and inherited properties, not just
+files. Whole-document checks use the planned logical model, not Base64 transport
+or source sidecars. Provenance annotations count toward annotation/text/document
+budgets, but do not add entity properties. Names used as part filenames have a
+250-character portability guard; choose aliases instead of truncating.
+`ANNOTATION_TEXT` rejects empty, multiline/control-containing or untrimmed
+annotation values rather than changing them through JSON escaping.
+JSON fallbacks count as emitted String properties. Unknown
+tenant/transport limits remain unverified. The separate backing-table engine
+budget is not a sizing guarantee for this unbound converter.
 
-Whole-document backstops use `preflight.logical_document`: compatibility level,
-model name, namespace names/lineages, target entities/properties/relationships with
-their emitted names/lineages/shapes/descriptions/annotations, and platform details.
-Each JSON container or scalar value counts one node; object keys do not, and root
-depth is 1. Source definitions, raw metadata sidecars, report findings, TMDL escape
-bytes and Base64 transport are excluded. This documented local normalization is
-not proof that a tenant's internal validator counts identical synthesized defaults.
-The profile does not invent transport-byte or tenant-specific limits.
+Preflight fails rather than truncating or silently splitting an ontology.
+[Source limits](dtdl-support.md#source-validation-boundaries) are separate.
 
-Technical names use stable identity hashes, disambiguating case/sanitization
-collisions independently of selection order. Source names remain in the manifest.
-Annotation metadata is not automatically generated from arbitrarily large originals;
-keeping it in sidecars avoids both unsupported parts and silent truncation.
-An internal annotation supplied to the serializer is still size/count checked.
-
-The future data-backed engine budget `2 + tables + columns <= 16000` is distinct;
-it is not a measured budget for these unbound payloads. REST batching cannot evade
-any per-item capacity constraint. Use explicit smaller roots/mappings/omissions,
-not automatic truncation or an implied lossless whole-Willow conversion.
-
-The resolver also has separate input/resource bounds documented in
-[DTDL subset](dtdl-support.md), including a one-million schema/component projection
-step guard. Service acceptance, feature rollout and transport limits require the
-separate [manual acceptance procedure](fabric-acceptance.md).
+[contract]: https://learn.microsoft.com/rest/api/fabric/articles/item-management/definitions/ontology-definition

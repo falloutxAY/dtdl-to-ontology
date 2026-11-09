@@ -222,13 +222,19 @@ class Normalizer:
             if isinstance(literal, str)
             else None
         )
+        datatype = value.get("@type")
+        if isinstance(datatype, list) and len(datatype) == 1:
+            datatype = datatype[0]
         if (
             set(value) - {"@value", "@type"}
             or expected is None
             or (
                 "@type" in value
-                and value["@type"]
-                not in {f"xsd:{expected}", f"http://www.w3.org/2001/XMLSchema#{expected}"}
+                and (
+                    not isinstance(datatype, str)
+                    or datatype
+                    not in {f"xsd:{expected}", f"http://www.w3.org/2001/XMLSchema#{expected}"}
+                )
             )
         ):
             self.issue("LITERAL", "Invalid representational literal.", source, owner)
@@ -329,7 +335,8 @@ class Normalizer:
             if name in ELEMENT_MEMBERS:
                 value = self.element(value, location, contexts, owner, INFERRED.get(name))
             else:
-                value = self.literal(value, location, owner)
+                if name != "target":
+                    value = self.literal(value, location, owner)
                 if isinstance(value, str) and name in {
                     "schema",
                     "valueSchema",

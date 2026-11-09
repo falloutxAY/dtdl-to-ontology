@@ -19,7 +19,11 @@ def test_explicit_target_mapping_keeps_unverified_gate(write_models):
         roots=(root["@id"],),
         target_mappings={key: target["@id"]},
     )
-    plan = make_plan(resolve(load(write_models(root, target))), options)
+    plan = make_plan(
+        resolve(load(write_models(root, target))),
+        options,
+        replace(DEFAULT_PROFILE, relationship_evidence=None),
+    )
     assert any(f.code == "TARGET_MAPPING" and f.approved for f in plan.findings)
     assert any(f.code == "UNBOUND_RELATIONSHIP" and f.blocking for f in plan.findings)
     assert plan.blocked
@@ -52,7 +56,11 @@ def test_placeholder_is_visible_and_cannot_bypass_gate(write_models):
         policies=frozenset({"placeholder-targets"}),
         placeholders=frozenset({missing}),
     )
-    plan = make_plan(resolve(load(write_models(root))), options)
+    plan = make_plan(
+        resolve(load(write_models(root))),
+        options,
+        replace(DEFAULT_PROFILE, relationship_evidence=None),
+    )
     assert plan.entities[missing].placeholder
     assert "unavailable" in plan.entities[missing].description
     assert any(f.code == "PLACEHOLDER_TARGET" for f in plan.findings)
@@ -82,7 +90,7 @@ def test_edge_reification_preserves_properties_and_endpoint_roles(write_models):
         policies=frozenset({"reify-relationship-properties"}),
     )
     resolution = resolve(load(write_models(root, target)))
-    blocked = make_plan(resolution, options)
+    blocked = make_plan(resolution, options, replace(DEFAULT_PROFILE, relationship_evidence=None))
     assert any(f.code == "UNBOUND_RELATIONSHIP" and f.blocking for f in blocked.findings)
     confirmed = replace(
         DEFAULT_PROFILE,

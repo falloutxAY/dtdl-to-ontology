@@ -100,7 +100,7 @@ def test_inherited_edges_are_explicit_and_unverified_output_is_blocked(write_mod
     child = interface("Child", extends=base["@id"])
     resolution = resolve(load(write_models(base, child, target)))
     options = Options(compatibility=True, policies=frozenset({"flatten-inheritance"}))
-    blocked = make_plan(resolution, options)
+    blocked = make_plan(resolution, options, replace(DEFAULT_PROFILE, relationship_evidence=None))
     with pytest.raises(ValueError, match="blocking"):
         render_relationships(blocked)
     profile = replace(

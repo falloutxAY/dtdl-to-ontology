@@ -1,0 +1,70 @@
+{
+  "date": "2026-11-09",
+  "profile": "fabric-new-2026-11-09",
+  "naming_strategy": "legacy-hashed",
+  "scope": "Public Fabric create/getDefinition and normalized supported-field comparison; no runtime equivalence",
+  "environment": "Authorized preview test workspace; tenant and resource identifiers omitted",
+  "hash_scope": "Exact bytes from the test checkout; source JSON used CRLF. Definition hashes include the unique test display name.",
+  "common_result": {
+    "create_http_status": 202,
+    "create_operation_status": "Succeeded",
+    "get_definition_http_status": 200,
+    "supported_fields_match": true,
+    "definition_part_paths_match": true,
+    "definition_parts_textually_identical": false,
+    "semantic_equivalence": "not_asserted",
+    "resources_retained": true
+  },
+  "cases": [
+    {
+      "source": "examples/scalars.json",
+      "source_sha256": "a88159b9e03411318a8ad11bba837ec23f7a25033e4b0ab5fcb91d138e5e8ebd",
+      "definition_sha256": "1c2f6e40a98d08ee3e693c2b6652291f3dd195e38f3659831308ccaee02ba2a0",
+      "entities": 1, "properties": 5, "relationships": 0, "parts": 6,
+      "policies": []
+    },
+    {
+      "source": "examples/relationships.json",
+      "source_sha256": "0326cf59c8a9a3a2f9a01b1f3644a8ca5c441f2b7a62abfc530a3ded3aba67b6",
+      "definition_sha256": "9e97d3ef8b2707b1ec7546588e75b3992ee953238390cc34c27d4b21447d567c",
+      "entities": 2, "properties": 2, "relationships": 1, "parts": 8,
+      "policies": []
+    },
+    {
+      "source": "examples/inheritance.json",
+      "source_sha256": "e6d1efcd5414de000bc006031515b659aa97ca74c00a6504e8dcd6f40f851def",
+      "definition_sha256": "838264a66d0b7b242e54e1acc48bc0a289b50b2b9816bf99b020255653d500f7",
+      "entities": 2, "properties": 1, "relationships": 0, "parts": 7,
+      "policies": [], "inheritance": true
+    },
+    {
+      "source": "examples/multiple-inheritance.json",
+      "source_sha256": "e8d7bba1b2d4aa61a24c471c88f4229a1497a339ab28dcb62f6cb67e939bf855",
+      "definition_sha256": "381ca45b50d7e20ca51159cdf6f6afe58d3aa33795559fd110f7ce22202883a6",
+      "entities": 3, "properties": 5, "relationships": 0, "parts": 8,
+      "policies": ["flatten-inheritance"]
+    },
+    {
+      "source": "examples/edge-properties.json",
+      "source_sha256": "ac84ceabe4f5d5748de87417481959937c66262b1cf05109b8f48e4e58203413",
+      "definition_sha256": "9bed4c365fcbd4391fc745caf0bf6000591c76400fba3361ce9f3124e8f09989",
+      "entities": 2, "properties": 2, "relationships": 2, "parts": 8,
+      "policies": ["reify-relationship-properties"]
+    },
+    {
+      "source": "examples/projection.json",
+      "source_sha256": "024e90653a99e0bdfbfd09b220a76a83f5dbd3ae3992c888fda815ad9b336f47",
+      "definition_sha256": "285099ede818aef2f34c20e1c27a00fc296fc4e80526811854a2c05debf8e89f",
+      "entities": 3, "properties": 6, "relationships": 0, "parts": 8,
+      "policies": [
+        "component-properties", "enum-underlying", "flatten-inheritance",
+        "json-collections", "json-objects", "metadata-semantics"
+      ]
+    }
+  ],
+  "negative_probe": {
+    "shape": "Native Struct property without backingConfiguration",
+    "http_status": 400,
+    "error_code": "ComplexLogicalBackingMismatch"
+  }
+}

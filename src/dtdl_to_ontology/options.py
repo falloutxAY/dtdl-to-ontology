@@ -1,11 +1,13 @@
 """Explicit approval boundaries for lossy projection policies."""
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from .identifiers import valid_dtmi
 from .loader import MAX_FILE_BYTES, read_json
 from .model import Finding, Source
+from .naming import NAME_KINDS, NameOverrides
 
 POLICIES = frozenset(
     {
@@ -33,6 +35,7 @@ class Options:
     placeholders: frozenset[str] = frozenset()
     inheritance: bool = False
     source_revision: str | None = None
+    name_overrides: NameOverrides = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         unknown = self.policies - POLICIES
@@ -59,6 +62,24 @@ class Options:
                 raise ValueError(f"Invalid configured DTMI: {identifier}")
         if self.omissions & self.target_mappings.keys():
             raise ValueError("A relationship cannot be both omitted and target-mapped.")
+        if not isinstance(self.name_overrides, dict) or self.name_overrides.keys() - NAME_KINDS:
+            raise ValueError(
+                "names must contain only namespaces, entities, properties, relationships."
+            )
+        for category, entries in self.name_overrides.items():
+            if not isinstance(entries, dict) or not all(
+                isinstance(key, str)
+                and isinstance(value, str)
+                and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", value)
+                for key, value in entries.items()
+            ):
+                raise ValueError(
+                    f"names.{category} must map source keys to ASCII identifier names."
+                )
+            if category == "namespaces" and any(
+                v.casefold() == "default" for v in entries.values()
+            ):
+                raise ValueError("The default namespace is reserved; choose a different alias.")
 
     def permits(self, policy: str) -> bool:
         return self.compatibility and policy in self.policies
@@ -111,7 +132,14 @@ def load_options(
         raw = read_json(data)
         if not isinstance(raw, dict):
             raise ValueError("Mapping configuration must be a JSON object.")
-    allowed = {"policies", "omit_relationships", "target_mappings", "placeholders", "inheritance"}
+    allowed = {
+        "policies",
+        "omit_relationships",
+        "target_mappings",
+        "placeholders",
+        "inheritance",
+        "names",
+    }
     if unknown := raw.keys() - allowed:
         raise ValueError(f"Unknown mapping configuration fields: {sorted(unknown)}")
     mappings = raw.get("target_mappings", {})
@@ -132,4 +160,5 @@ def load_options(
         placeholders=frozenset(string_list(raw.get("placeholders", []), "placeholders")),
         inheritance=inheritance,
         source_revision=source_revision,
+        name_overrides=raw.get("names", {}),
     )

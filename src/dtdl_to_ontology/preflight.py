@@ -6,7 +6,14 @@ from dataclasses import dataclass
 
 from .definition import platform_details
 from .model import Finding, Source
-from .naming import lineage, property_name, target_name
+from .naming import (
+    annotation_text,
+    lineage,
+    namespace_source,
+    naming_findings,
+    property_name,
+    target_name,
+)
 from .plan import Plan
 
 
@@ -40,12 +47,13 @@ def complex_metrics(shape: dict) -> tuple[int, int, int]:
 
 
 def logical_document(plan: Plan, name: str) -> dict:
+    overrides = plan.options.name_overrides
     entities = []
     for identity, entity in sorted(plan.entities.items()):
         properties = []
         for prop in sorted(entity.properties, key=lambda prop: prop.name):
             record = {
-                "name": property_name(identity, prop.name),
+                "name": property_name(identity, prop.name, overrides),
                 "lineageTag": lineage(identity + "/" + prop.name, "property"),
                 "dataType": (
                     prop.logical_type["dataType"]
@@ -61,7 +69,7 @@ def logical_document(plan: Plan, name: str) -> dict:
                 record["annotations"] = prop.annotations
             properties.append(record)
         record = {
-            "name": target_name(identity).qualified,
+            "name": target_name(identity, overrides=overrides).qualified,
             "lineageTag": target_name(identity).lineage_tag,
             "properties": properties,
         }
@@ -70,14 +78,15 @@ def logical_document(plan: Plan, name: str) -> dict:
         if entity.annotations:
             record["annotations"] = entity.annotations
         if entity.base:
-            record["baseEntityType"] = target_name(entity.base).qualified
+            record["baseEntityType"] = target_name(entity.base, overrides=overrides).qualified
         entities.append(record)
     relationships = [
         {
-            "name": target_name(r.identity, "relationship").qualified,
+            "name": target_name(r.identity, "relationship", overrides).qualified,
             "lineageTag": target_name(r.identity, "relationship").lineage_tag,
-            "fromEntity": target_name(r.from_entity).qualified,
-            "toEntity": target_name(r.to_entity).qualified,
+            "fromEntity": target_name(r.from_entity, overrides=overrides).qualified,
+            "toEntity": target_name(r.to_entity, overrides=overrides).qualified,
+            **({"label": r.label} if r.label else {}),
             **({"description": r.description} if r.description else {}),
             **({"annotations": r.annotations} if r.annotations else {}),
         }
@@ -90,9 +99,19 @@ def logical_document(plan: Plan, name: str) -> dict:
             "namespaces": [
                 {"name": "default", "lineageTag": "default"},
                 *[
-                    {"name": namespace, "lineageTag": lineage(namespace, "namespace")}
-                    for namespace in sorted(
-                        {target_name(identity).namespace for identity in plan.entities}
+                    {
+                        "name": namespace,
+                        "lineageTag": lineage(original, "namespace"),
+                        "annotations": {"dtdlNamespace": original},
+                    }
+                    for namespace, original in sorted(
+                        {
+                            target_name(identity, overrides=overrides).namespace: namespace_source(
+                                identity
+                            )
+                            for identity in plan.entities
+                            if target_name(identity, overrides=overrides).namespace
+                        }.items()
                     )
                 ],
             ],
@@ -111,7 +130,8 @@ class Preflight:
 
 def preflight(plan: Plan, name: str = "Ontology") -> Preflight:
     profile = plan.profile
-    findings = []
+    findings = naming_findings(plan)
+    overrides = plan.options.name_overrides
     global_source = Source("<target>")
     if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,88}", name):
         findings.append(
@@ -154,25 +174,17 @@ def preflight(plan: Plan, name: str = "Ontology") -> Preflight:
         for key, value in values.items():
             check("NAME", len(key), profile.max_name, source, owner)
             text(value, source, owner, "Annotation")
+            try:
+                annotation_text(value)
+            except ValueError as error:
+                findings.append(Finding("ANNOTATION_TEXT", str(error), source, owner))
 
     check("ENTITIES", len(plan.entities), profile.max_entities, global_source, None)
     check("RELATIONSHIPS", len(plan.relationships), profile.max_relationships, global_source, None)
     check("NAME", len(name), profile.max_name, global_source, None)
     property_counts = {}
-    identities = set()
     for identity, entity in sorted(plan.entities.items()):
-        target = target_name(identity)
-        folded = target.qualified.casefold()
-        if folded in identities:
-            findings.append(
-                Finding(
-                    "IDENTITY_COLLISION",
-                    "Case-insensitive entity/path collision.",
-                    entity.source,
-                    identity,
-                )
-            )
-        identities.add(folded)
+        target = target_name(identity, overrides=overrides)
         check("NAME", len(target.qualified), profile.max_name, entity.source, identity)
         text(entity.description, entity.source, identity, "Description")
         annotations(entity.annotations, entity.source, identity)
@@ -189,19 +201,8 @@ def preflight(plan: Plan, name: str = "Ontology") -> Preflight:
         count = sum(len(plan.entities[ancestor].properties) for ancestor in inherited)
         property_counts[identity] = count
         check("PROPERTIES", count, profile.max_properties, entity.source, identity)
-        names = set()
         for prop in entity.properties:
-            mapped = property_name(identity, prop.name)
-            if mapped.casefold() in names:
-                findings.append(
-                    Finding(
-                        "IDENTITY_COLLISION",
-                        "Case-insensitive property collision.",
-                        prop.source,
-                        identity,
-                    )
-                )
-            names.add(mapped.casefold())
+            mapped = property_name(identity, prop.name, overrides)
             check("NAME", len(mapped), profile.max_name, prop.source, identity)
             text(prop.description, prop.source, identity, "Description")
             annotations(prop.annotations, prop.source, identity)
@@ -221,20 +222,10 @@ def preflight(plan: Plan, name: str = "Ontology") -> Preflight:
                             pending_shapes.append(field["type"])
                     elif shape["kind"] == "timeSeries":
                         pending_shapes.append(shape["elementType"])
-    relationship_names = set()
     for relation in plan.relationships:
-        mapped = target_name(relation.identity, "relationship").qualified
+        mapped = target_name(relation.identity, "relationship", overrides).qualified
         check("NAME", len(mapped), profile.max_name, relation.source, relation.from_entity)
-        if mapped.casefold() in relationship_names:
-            findings.append(
-                Finding(
-                    "IDENTITY_COLLISION",
-                    "Case-insensitive relationship collision.",
-                    relation.source,
-                    relation.from_entity,
-                )
-            )
-        relationship_names.add(mapped.casefold())
+        text(relation.label, relation.source, relation.from_entity, "Relationship label")
         text(relation.description, relation.source, relation.from_entity, "Description")
         annotations(relation.annotations, relation.source, relation.from_entity)
     nodes, depth = json_metrics(logical_document(plan, name))
