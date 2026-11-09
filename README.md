@@ -75,6 +75,7 @@ data, and [bindings](https://learn.microsoft.com/fabric/iq/ontology/how-to-bind-
 
 ## Repository guide
 
+- [Requirements and acceptance checks](docs/requirements.md): maintained checklist, regression links and pending acceptance work.
 - [CLI, outputs and limits](docs/output-and-limits.md): configuration, failures and recovery.
 - [Testing](docs/testing.md): official specification corpus, independent samples, Willow, and contributor checks.
 - `examples/`: small runnable models; `src/`: converter; `tests/`: regressions.
